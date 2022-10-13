@@ -3,6 +3,7 @@
 source $(pwd)/scripts/env.sh
 
 cd $LIB_SRC_DIR
+
 wget -c https://downloads.unidata.ucar.edu/netcdf-c/4.9.0/netcdf-c-4.9.0.tar.gz
 tar -xzvf netcdf-c-4.9.0.tar.gz
 
@@ -13,8 +14,7 @@ export CPPFLAGS=-I$LIB_PREFIX/include
 export LDFLAGS=-L$LIB_PREFIX/lib
 export CC=mpicc
 export FC=mpifort
-#./configure --prefix=$PREFIX --disable-dap -enable-pnetcdf --enable-cdf5 --enable-parallel-test --disable-shared
 ./configure --prefix=$LIB_PREFIX --enable-cdf5 --enable-parallel-test --enable-cdf5
 make -j6
-#make -j6 check
+make -j6 check
 make -j6 install

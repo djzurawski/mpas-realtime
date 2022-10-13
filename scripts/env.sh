@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export LIB_SRC_DIR="$(pwd)/libray/src"
+export LIB_SRC_DIR="$(pwd)/library/src"
 export LIB_PREFIX="$(pwd)/library"
 
 export LD_LIBRARY_PATH=$LIB_PREFIX/lib:$LD_LIBRARY_PATH
