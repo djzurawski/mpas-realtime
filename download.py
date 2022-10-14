@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 import requests
 import concurrent.futures
+import f90nml
+import os
 
 
 def select_gfs_cycle():
@@ -8,13 +10,13 @@ def select_gfs_cycle():
     cycle available on NOMADS for current time"""
     utc_hour = datetime.utcnow().hour
     if utc_hour >= 5 and utc_hour < 11:
-        return "00"
+        return 0
     if utc_hour >= 11 and utc_hour < 17:
-        return "06"
+        return 6
     if utc_hour >= 17 and utc_hour < 21:
-        return "12"
+        return 12
     if utc_hour >= 21 or utc_hour < 5:
-        return "18"
+        return 18
 
 
 def is_last_cycle_yesterday():
@@ -25,27 +27,32 @@ def is_last_cycle_yesterday():
         return False
 
 
-def latest_day_and_cycle():
+def latest_gfs_init_date():
+    now = datetime.utcnow()
     cycle = select_gfs_cycle()
     if is_last_cycle_yesterday():
-        date = datetime.utcnow() - timedelta(days=1)
+        date = now - timedelta(days=1)
     else:
-        date = datetime.utcnow()
+        date = now
 
-    return date.strftime("%Y%m%d"), cycle
+    date = date.replace(hour=cycle, minute=0, second=0, microsecond=0)
+
+    return date
 
 
-def grib_filename(cycle, fhour, model="gfs"):
+def grib_filename(valid_dt, cycle, fhour, model="gfs"):
     fhour = str(fhour).zfill(2)
-    return f"{model}.t{cycle}z.f{fhour}.grib2"
+    date = valid_dt.replace(second=0, microsecond=0)
+    date_str = date.isoformat()
+    fname = f"{model}.t{cycle}.f{fhour}.{date_str}.grib2"
+    return fname
 
 
-def download_filtered_grib(day_of_year, cycle, fhour):
-    """Downloads gribs filtered to selected area
-    day_of_year = 'yyyymmdd'"""
+def download_filtered_grib(date, cycle, fhour):
+    """Downloads gribs filtered to selected area"""
 
     grib_dir = "data/grib"
-    fname = grib_filename(cycle, fhour, "gfs")
+    fname = grib_filename(date, cycle, fhour, "gfs")
 
     fhour = str(fhour).zfill(3)
     cycle = str(cycle).zfill(2)
@@ -54,6 +61,8 @@ def download_filtered_grib(day_of_year, cycle, fhour):
     rightlon = -87
     toplat = 52
     bottomlat = 25
+
+    day_of_year = date.strftime("%Y%m%d")
 
     params = {
         "file": f"gfs.t{cycle}z.pgrb2.0p25.f{fhour}",
@@ -75,8 +84,8 @@ def download_filtered_grib(day_of_year, cycle, fhour):
     return r.status_code
 
 
-def download_gribs(date, cycle, flength):
-    cycle = str(cycle).zfill(2)
+def download_gribs(date, flength):
+    cycle = str(date.hour).zfill(2)
 
     fhours = [i for i in range(flength + 1)]
     dates = [date for i in fhours]
@@ -88,7 +97,30 @@ def download_gribs(date, cycle, flength):
     return responses
 
 
-def download_latest_grib():
-    date, cycle = latest_day_and_cycle()
-    download_gribs(date, cycle, 12)
-    return date, cycle
+def download_latest_grib(flength=12):
+    date = latest_gfs_init_date()
+    download_gribs(date, flength)
+    return date
+
+
+def update_wps_namelist(init_date, flength):
+    namelist_date_format = "%Y-%m-%d_%H:%M:%S"
+    start_str = init_date.strftime(namelist_date_format)
+    end_date = init_date + timedelta(hours=flength)
+    end_str = end_date.strftime(namelist_date_format)
+    fpath = f"{os.environ['PROGRAM_DIR']}/WPS-4.4/namelist.wps"
+    wps_nml = f90nml.read(fpath)
+
+    wps_nml["share"]["start_date"] = start_str
+    wps_nml["share"]["end_date"] = end_str
+    wps_nml["share"]["interval_seconds"] = 3600
+    with open(fpath, "w") as f:
+        wps_nml.write(f)
+
+    return wps_nml
+
+
+if __name__ == "__main__":
+    flength = 12
+    init = download_latest_grib(flength)
+    update_wps_namelist(init, flength)
