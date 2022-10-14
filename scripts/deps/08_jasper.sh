@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source $(pwd)/scripts/env.sh
 
 cd $LIB_SRC_DIR
 wget -c https://www.ece.uvic.ca/~frodo/jasper/software/jasper-2.0.14.tar.gz

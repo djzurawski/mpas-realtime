@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source $(pwd)/scripts/env.sh
 
 
 #zlib

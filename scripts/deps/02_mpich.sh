@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source $(pwd)/scripts/env.sh
 
 cd $LIB_SRC_DIR
 wget -c https://www.mpich.org/static/downloads/4.0.2/mpich-4.0.2.tar.gz

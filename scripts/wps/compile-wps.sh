@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source $(pwd)/scripts/env.sh
 
 echo $LD_LIBRARY_PATH
 

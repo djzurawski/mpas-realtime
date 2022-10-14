@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source $(pwd)/scripts/env.sh
 
 cd $LIB_SRC_DIR
 export CPPFLAGS="-I$LIB_PREFIX/include"

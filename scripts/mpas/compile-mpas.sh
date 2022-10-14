@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source $(pwd)/scripts/env.sh
 
 LIB_PREFIX="$(pwd)/library"
 PROGRAM_DIR="$(pwd)/program"
