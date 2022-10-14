@@ -7,19 +7,19 @@ def select_gfs_cycle():
     """Attemps to figure out the most recent GFS
     cycle available on NOMADS for current time"""
     utc_hour = datetime.utcnow().hour
-    if utc_hour >= 4 and utc_hour < 10:
+    if utc_hour >= 5 and utc_hour < 11:
         return "00"
-    if utc_hour >= 10 and utc_hour < 16:
+    if utc_hour >= 11 and utc_hour < 17:
         return "06"
-    if utc_hour >= 16 and utc_hour < 20:
+    if utc_hour >= 17 and utc_hour < 21:
         return "12"
-    if utc_hour >= 20 or utc_hour < 4:
+    if utc_hour >= 21 or utc_hour < 5:
         return "18"
 
 
 def is_last_cycle_yesterday():
     utc_hour = datetime.utcnow().hour
-    if utc_hour < 3:
+    if utc_hour < 5:
         return True
     else:
         return False
