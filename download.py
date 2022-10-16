@@ -48,11 +48,13 @@ def grib_filename(valid_dt, cycle, fhour, model="gfs"):
     return fname
 
 
-def download_filtered_grib(date, cycle, fhour):
+def download_filtered_grib(init_date, cycle, fhour):
     """Downloads gribs filtered to selected area"""
 
+    valid_date = init_date + timedelta(hours=fhour)
+
     grib_dir = "data/grib"
-    fname = grib_filename(date, cycle, fhour, "gfs")
+    fname = grib_filename(valid_date, cycle, fhour, "gfs")
 
     fhour = str(fhour).zfill(3)
     cycle = str(cycle).zfill(2)
@@ -62,7 +64,7 @@ def download_filtered_grib(date, cycle, fhour):
     toplat = 52
     bottomlat = 25
 
-    day_of_year = date.strftime("%Y%m%d")
+    init_day_of_year = init_date.strftime("%Y%m%d")
 
     params = {
         "file": f"gfs.t{cycle}z.pgrb2.0p25.f{fhour}",
@@ -71,7 +73,7 @@ def download_filtered_grib(date, cycle, fhour):
         "rightlon": rightlon,
         "toplat": toplat,
         "bottomlat": bottomlat,
-        "dir": f"/gfs.{day_of_year}/{cycle}/atmos",
+        "dir": f"/gfs.{init_day_of_year}/{cycle}/atmos",
     }
 
     url = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl"
@@ -84,23 +86,23 @@ def download_filtered_grib(date, cycle, fhour):
     return r.status_code
 
 
-def download_gribs(date, flength):
-    cycle = str(date.hour).zfill(2)
+def download_gribs(init_date, flength):
+    cycle = str(init_date.hour).zfill(2)
 
     fhours = [i for i in range(flength + 1)]
-    dates = [date for i in fhours]
+    init_dates = [init_date for i in fhours]
     cycles = [cycle for i in fhours]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        responses = executor.map(download_filtered_grib, dates, cycles, fhours)
+        responses = executor.map(download_filtered_grib, init_dates, cycles, fhours)
 
     return responses
 
 
 def download_latest_grib(flength=12):
-    date = latest_gfs_init_date()
-    download_gribs(date, flength)
-    return date
+    init_date = latest_gfs_init_date()
+    download_gribs(init_date, flength)
+    return init_date
 
 
 def update_wps_namelist(init_date, flength):
@@ -121,6 +123,6 @@ def update_wps_namelist(init_date, flength):
 
 
 if __name__ == "__main__":
-    flength = 12
-    init = download_latest_grib(flength)
-    update_wps_namelist(init, flength)
+    flength = 84 
+    init_date = download_latest_grib(flength)
+    update_wps_namelist(init_date, flength)
