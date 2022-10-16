@@ -57,10 +57,10 @@ def download_filtered_grib(date, cycle, fhour):
     fhour = str(fhour).zfill(3)
     cycle = str(cycle).zfill(2)
 
-    leflon = -125
-    rightlon = -87
-    toplat = 52
-    bottomlat = 25
+    leflon = -135
+    rightlon = -80
+    toplat = 60
+    bottomlat = 20
 
     day_of_year = date.strftime("%Y%m%d")
 
