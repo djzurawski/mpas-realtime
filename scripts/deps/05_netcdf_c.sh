@@ -4,7 +4,7 @@
 cd $LIB_SRC_DIR
 
 wget -c https://downloads.unidata.ucar.edu/netcdf-c/4.9.0/netcdf-c-4.9.0.tar.gz
-tar -xzvf netcdf-c-4.9.0.tar.gz
+tar -xzf netcdf-c-4.9.0.tar.gz
 
 cd netcdf-c-4.9.0
 make clean

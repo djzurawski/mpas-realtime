@@ -1,9 +1,8 @@
 #!/bin/bash
 
-
 cd $LIB_SRC_DIR
 wget -c https://parallel-netcdf.github.io/Release/pnetcdf-1.12.3.tar.gz
-tar -xzvf pnetcdf-1.12.3.tar.gz
+tar -xzf pnetcdf-1.12.3.tar.gz
 cd pnetcdf-1.12.3
 export CC=gcc
 export CXX=g++
