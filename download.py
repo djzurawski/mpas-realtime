@@ -66,6 +66,8 @@ def download_filtered_grib(date, cycle, fhour):
 
     params = {
         "file": f"gfs.t{cycle}z.pgrb2.0p25.f{fhour}",
+        "all_lev": "on",
+        "all_var": "on",
         "subregion": "",
         "leftlon": leflon,
         "rightlon": rightlon,
@@ -74,7 +76,8 @@ def download_filtered_grib(date, cycle, fhour):
         "dir": f"/gfs.{day_of_year}/{cycle}/atmos",
     }
 
-    url = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl"
+    url = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl?"
+
 
     print("Downloading", fname)
     r = requests.get(url, params=params)
