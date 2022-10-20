@@ -173,6 +173,10 @@ def prep_initial_streams(domain_name):
 
     new_xml = ET.tostring(root)
     pretty_xml = minidom.parseString(new_xml).toprettyxml(indent="    ")
+    pretty_xml_lines = pretty_xml.splitlines()
+    pretty_xml_no_version = pretty_xml_lines[1:]
+    # remove excessive blank lines
+    pretty_xml = os.linesep.join([s for s in pretty_xml_no_version if s.strip()])
 
     with open("MPAS-Model/streams.init_atmosphere", "w") as f:
         f.write(pretty_xml)
@@ -190,6 +194,10 @@ def prep_lbc_streams(domain_name):
 
     new_xml = ET.tostring(root)
     pretty_xml = minidom.parseString(new_xml).toprettyxml(indent="    ")
+    pretty_xml_lines = pretty_xml.splitlines()
+    pretty_xml_no_version = pretty_xml_lines[1:]
+    # remove excessive blank lines
+    pretty_xml = os.linesep.join([s for s in pretty_xml_no_version if s.strip()])
 
     with open("MPAS-Model/streams.init_atmosphere", "w") as f:
         f.write(pretty_xml)
@@ -208,6 +216,10 @@ def prep_run_streams(domain_name):
 
     new_xml = ET.tostring(root)
     pretty_xml = minidom.parseString(new_xml).toprettyxml(indent="    ")
+    pretty_xml_lines = pretty_xml.splitlines()
+    pretty_xml_no_version = pretty_xml_lines[1:]
+    # remove excessive blank lines
+    pretty_xml = os.linesep.join([s for s in pretty_xml_no_version if s.strip()])
 
     with open("MPAS-Model/streams.atmosphere", "w") as f:
         f.write(pretty_xml)
@@ -271,7 +283,7 @@ def prep_run_namelist(domain_name, init_date, flength):
         "config_block_decomp_file_prefix"
     ] = f"{domain_name}.graph.info.part."
 
-    with open("MPAS-Model/namelist.init_atmosphere", "w") as f:
+    with open("MPAS-Model/namelist.atmosphere", "w") as f:
         nml.write(f)
 
 
@@ -288,6 +300,7 @@ def prep_lbc(domain_name, init_date, flength):
 def prep_run(domain_name, init_date, flength):
     prep_run_streams(domain_name)
     prep_run_namelist(domain_name, init_date, flength)
+
 
 if __name__ == "__main__":
     flength = 12
