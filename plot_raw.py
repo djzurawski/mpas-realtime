@@ -172,8 +172,7 @@ def grid_data(x, y, z, side_len=None):
     return grid_x, grid_y, grid_z
 
 
-def basemap():
-    projection = crs.PlateCarree()
+def basemap(projection=crs.PlateCarree()):
     fig = plt.figure(figsize=(18, 10))
     ax = plt.axes(projection=projection)
 
@@ -192,14 +191,6 @@ def basemap():
     ax.add_feature(lakes, facecolor="none", edgecolor="blue", linewidth=0.5)
     ax.add_feature(states, facecolor="none", edgecolor="black")
     ax.coastlines(border_scale, linewidth=0.8)
-
-    states = NaturalEarthFeature(
-        category="cultural",
-        scale=border_scale,
-        facecolor="none",
-        edgecolor="black",
-        name="admin_1_states_provinces",
-    )
     ax.add_feature(states, facecolor="none", edgecolor="black")
     ax.add_feature(USCOUNTIES.with_scale(county_scale), edgecolor="gray")
 
