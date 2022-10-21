@@ -317,7 +317,7 @@ def prep_lbc_namelist(domain_name, init_date, flength):
     nml["nhyd_model"]["config_start_time"] = start_str
     nml["nhyd_model"]["config_stop_time"] = end_str
 
-    nml["vertical_grid"]["config_blend_bdy_terrain"] = True
+    nml["vertical_grid"]["config_blend_bdy_terrain"] = False
 
     nml["preproc_stages"] = PREPROC_STAGES
     nml["data_sources"]["config_fg_interval"] = lbc_interval
@@ -330,7 +330,7 @@ def prep_lbc_namelist(domain_name, init_date, flength):
         nml.write(f)
 
 
-def prep_run_namelist(domain_name, init_date, flength):
+def prep_run_namelist(domain_name, init_date, flength, resolution_km):
     fpath = f"{ROOT_DIR}/MPAS-Model/namelist.atmosphere"
     nml = f90nml.read(fpath)
 
@@ -340,6 +340,8 @@ def prep_run_namelist(domain_name, init_date, flength):
 
     nml["nhyd_model"]["config_start_time"] = start_str
     nml["nhyd_model"]["config_run_duration"] = run_duration_str
+    nml["nhyd_model"]["config_dt"] = 6 * resolution_km
+    nml["nhyd_model"]["config_len_disp"] = 1000 * resolution_km
 
     nml["limited_area"]["config_apply_lbcs"] = True
     nml["decomposition"][
@@ -360,14 +362,15 @@ def prep_lbc(domain_name, init_date, flength):
     prep_lbc_namelist(domain_name, init_date, flength)
 
 
-def prep_run(domain_name, init_date, flength):
+def prep_run(domain_name, init_date, flength, resolution_km):
     prep_run_streams(domain_name)
-    prep_run_namelist(domain_name, init_date, flength)
+    prep_run_namelist(domain_name, init_date, flength, resolution_km)
 
 
 if __name__ == "__main__":
     flength = 3
     domain_name = "west12km"
+    resolution_km = 12
     SCRIPT_DIR = f"{ROOT_DIR}/scripts"
     init_dt = latest_gfs_init_date()
 
@@ -388,5 +391,5 @@ if __name__ == "__main__":
     subprocess.call(f"{SCRIPT_DIR}/run_init_atmosphere.sh")
 
     print("Running")
-    prep_run(domain_name, init_dt, flength)
+    prep_run(domain_name, init_dt, flength, resolution_km)
     subprocess.call(f"{SCRIPT_DIR}/run_atmosphere.sh")
