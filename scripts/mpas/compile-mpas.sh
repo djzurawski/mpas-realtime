@@ -10,4 +10,4 @@ make clean CORE=init_atmosphere USE_PIO2=true
 make -j $CPU_CORES gfortran CORE=init_atmosphere USE_PIO2=true PRECISION=single
 make clean CORE=atmosphere USE_PIO2=true
 make -j $CPU_CORES gfortran CORE=atmosphere USE_PIO2=true PRECISION=single
-./build-tables
+./build_tables
