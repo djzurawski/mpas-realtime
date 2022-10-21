@@ -1,7 +1,6 @@
 #!/bin/bash
 
 LIB_PREFIX="$(pwd)/library"
-
 CPU_CORES=$(nproc)
 
 cd $ROOT_DIR

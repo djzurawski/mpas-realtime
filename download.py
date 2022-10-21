@@ -91,7 +91,7 @@ def grib_filename(valid_dt, cycle, fhour, model="gfs"):
     return fname
 
 
-def download_filtered_grib(date, cycle, fhour):
+def download_filtered_grib(init_date, cycle, fhour):
     """Downloads gribs filtered to selected area"""
 
     grib_dir = f"{ROOT_DIR}/data/grib"
@@ -105,7 +105,7 @@ def download_filtered_grib(date, cycle, fhour):
     toplat = 60
     bottomlat = 20
 
-    day_of_year = date.strftime("%Y%m%d")
+    init_day_of_year = init_date.strftime("%Y%m%d")
 
     params = {
         "file": f"gfs.t{cycle}z.pgrb2.0p25.f{fhour}",
@@ -116,7 +116,7 @@ def download_filtered_grib(date, cycle, fhour):
         "rightlon": rightlon,
         "toplat": toplat,
         "bottomlat": bottomlat,
-        "dir": f"/gfs.{day_of_year}/{cycle}/atmos",
+        "dir": f"/gfs.{init_day_of_year}/{cycle}/atmos",
     }
 
     url = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl?"
@@ -171,11 +171,11 @@ def download_gribs(date, flength):
     cycle = str(date.hour).zfill(2)
 
     fhours = [i for i in range(flength + 1)]
-    dates = [date for i in fhours]
+    init_dates = [init_date for i in fhours]
     cycles = [cycle for i in fhours]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        responses = executor.map(download_filtered_grib, dates, cycles, fhours)
+        responses = executor.map(download_filtered_grib, init_dates, cycles, fhours)
 
     return responses
 
