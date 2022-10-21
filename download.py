@@ -5,9 +5,13 @@ import f90nml
 import os
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
+import subprocess
 
 NAMELIST_DATE_FORMAT = "%Y-%m-%d_%H:%M:%S"
 RUN_DURATION_FORMAT = "%-d_%H:%M:%S"
+
+ROOT_DIR = os.environ["ROOT_DIR"]
+NCPUS = 6
 
 
 PREPROC_STAGES = {
@@ -90,7 +94,7 @@ def grib_filename(valid_dt, cycle, fhour, model="gfs"):
 def download_filtered_grib(date, cycle, fhour):
     """Downloads gribs filtered to selected area"""
 
-    grib_dir = "data/grib"
+    grib_dir = f"{ROOT_DIR}/data/grib"
     fname = grib_filename(date, cycle, fhour, "gfs")
 
     fhour = str(fhour).zfill(3)
@@ -125,6 +129,44 @@ def download_filtered_grib(date, cycle, fhour):
     return r.status_code
 
 
+def download_0p50_grib(date, cycle, fhour):
+    grib_dir = f"{ROOT_DIR}/data/grib"
+    fname = grib_filename(date, cycle, fhour, "gfs")
+
+    fhour = str(fhour).zfill(3)
+    cycle = str(cycle).zfill(2)
+
+    day_of_year = date.strftime("%Y%m%d")
+
+    url = "20221015/12/atmos/gfs.t12z.pgrb2b.0p50.f060"
+
+    base_url = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs."
+    date_url = f"{day_of_year}/{cycle}/atmos/gfs.t{cycle}z.pgrb2.0p50.f{fhour}"
+
+    url = base_url + date_url
+
+    print("Downloading", fname)
+    r = requests.get(url)
+    with open(f"{grib_dir}/{fname}", "wb") as f:
+        f.write(r.content)
+
+    return r.status_code
+
+
+def download_0p50_gribs(date, flength):
+    "0.5deg gribs every 3 hours"
+    cycle = str(date.hour).zfill(2)
+
+    fhours = [i for i in range(0, flength + 1, 3)]
+    dates = [date for i in fhours]
+    cycles = [cycle for i in fhours]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        responses = executor.map(download_0p50_grib, dates, cycles, fhours)
+
+    return responses
+
+
 def download_gribs(date, flength):
     cycle = str(date.hour).zfill(2)
 
@@ -138,9 +180,12 @@ def download_gribs(date, flength):
     return responses
 
 
-def download_latest_grib(flength=12):
+def download_latest_grib(flength=12, globe=False):
     date = latest_gfs_init_date()
-    download_gribs(date, flength)
+    if globe:
+        download_0p50_gribs(date, flength)
+    else:
+        download_gribs(date, flength)
     return date
 
 
@@ -149,7 +194,7 @@ def update_wps_namelist(init_date, flength):
     start_str = init_date.strftime(NAMELIST_DATE_FORMAT)
     end_date = init_date + timedelta(hours=flength)
     end_str = end_date.strftime(NAMELIST_DATE_FORMAT)
-    fpath = f"{os.environ['PROGRAM_DIR']}/WPS-4.4/namelist.wps"
+    fpath = f"{ROOT_DIR}/tools/WPS-4.4/namelist.wps"
     wps_nml = f90nml.read(fpath)
 
     wps_nml["share"]["start_date"] = start_str
@@ -162,7 +207,8 @@ def update_wps_namelist(init_date, flength):
 
 
 def prep_initial_streams(domain_name):
-    tree = ET.parse("MPAS-Model/streams.init_atmosphere")
+    fpath = f"{ROOT_DIR}/MPAS-Model/streams.init_atmosphere"
+    tree = ET.parse(fpath)
     root = tree.getroot()
 
     for node in root:
@@ -178,19 +224,24 @@ def prep_initial_streams(domain_name):
     # remove excessive blank lines
     pretty_xml = os.linesep.join([s for s in pretty_xml_no_version if s.strip()])
 
-    with open("MPAS-Model/streams.init_atmosphere", "w") as f:
+    with open(fpath, "w") as f:
         f.write(pretty_xml)
 
 
 def prep_lbc_streams(domain_name):
-    tree = ET.parse("MPAS-Model/streams.init_atmosphere")
+    fpath = f"{ROOT_DIR}/MPAS-Model/streams.init_atmosphere"
+    tree = ET.parse(fpath)
     root = tree.getroot()
+
+    lbc_interval = "1:00:00"
 
     for node in root:
         if node.attrib["name"] == "input":
             node.attrib["filename_template"] = f"{domain_name}.init.nc"
         if node.attrib["name"] == "output":
             node.attrib["filename_template"] = f"{domain_name}.foo.nc"
+        if node.attrib["name"] == "lbc":
+            node.attrib["output_interval"] = lbc_interval
 
     new_xml = ET.tostring(root)
     pretty_xml = minidom.parseString(new_xml).toprettyxml(indent="    ")
@@ -199,34 +250,41 @@ def prep_lbc_streams(domain_name):
     # remove excessive blank lines
     pretty_xml = os.linesep.join([s for s in pretty_xml_no_version if s.strip()])
 
-    with open("MPAS-Model/streams.init_atmosphere", "w") as f:
+    with open(fpath, "w") as f:
         f.write(pretty_xml)
 
 
 def prep_run_streams(domain_name):
-    tree = ET.parse("MPAS-Model/streams.atmosphere")
+    fpath = f"{ROOT_DIR}/MPAS-Model/streams.atmosphere"
+    tree = ET.parse(fpath)
     root = tree.getroot()
+
+    lbc_interval = "1:00:00"
 
     for node in root:
         if node.attrib["name"] == "input":
             node.attrib["filename_template"] = f"{domain_name}.init.nc"
 
         if node.attrib["name"] == "lbc_in":
-            node.attrib["input_interval"] = "1:00:00"
+            node.attrib["input_interval"] = lbc_interval
+            print("SET", lbc_interval)
 
     new_xml = ET.tostring(root)
+    print(new_xml)
     pretty_xml = minidom.parseString(new_xml).toprettyxml(indent="    ")
     pretty_xml_lines = pretty_xml.splitlines()
     pretty_xml_no_version = pretty_xml_lines[1:]
     # remove excessive blank lines
     pretty_xml = os.linesep.join([s for s in pretty_xml_no_version if s.strip()])
+    # print(pretty_xml)
 
-    with open("MPAS-Model/streams.atmosphere", "w") as f:
+    with open(fpath, "w") as f:
         f.write(pretty_xml)
 
 
 def prep_initial_namelist(domain_name, init_date, flength):
-    nml = f90nml.read("MPAS-Model/namelist.init_atmosphere")
+    fpath = f"{ROOT_DIR}/MPAS-Model/namelist.init_atmosphere"
+    nml = f90nml.read(fpath)
 
     start_str = init_date.strftime(NAMELIST_DATE_FORMAT)
     end_date = init_date + timedelta(hours=flength)
@@ -237,17 +295,21 @@ def prep_initial_namelist(domain_name, init_date, flength):
     nml["nhyd_model"]["config_start_time"] = start_str
     nml["nhyd_model"]["config_stop_time"] = end_str
 
+    nml["vertical_grid"]["config_blend_bdy_terrain"] = True
+
     nml["preproc_stages"] = PREPROC_STAGES
     nml["decomposition"][
         "config_block_decomp_file_prefix"
     ] = f"{domain_name}.graph.info.part."
 
-    with open("MPAS-Model/namelist.init_atmosphere", "w") as f:
+    with open(fpath, "w") as f:
         nml.write(f)
 
 
 def prep_lbc_namelist(domain_name, init_date, flength):
-    nml = f90nml.read("MPAS-Model/namelist.init_atmosphere")
+    fpath = f"{ROOT_DIR}/MPAS-Model/namelist.init_atmosphere"
+    nml = f90nml.read(fpath)
+    lbc_interval = 3600
 
     start_str = init_date.strftime(NAMELIST_DATE_FORMAT)
     end_date = init_date + timedelta(hours=flength)
@@ -258,19 +320,22 @@ def prep_lbc_namelist(domain_name, init_date, flength):
     nml["nhyd_model"]["config_start_time"] = start_str
     nml["nhyd_model"]["config_stop_time"] = end_str
 
+    nml["vertical_grid"]["config_blend_bdy_terrain"] = True
+
     nml["preproc_stages"] = PREPROC_STAGES
-    nml["data_sources"]["config_fg_interval"] = 3600
+    nml["data_sources"]["config_fg_interval"] = lbc_interval
     nml["data_sources"]["config_met_prefix"] = "FILE"
     nml["decomposition"][
         "config_block_decomp_file_prefix"
     ] = f"{domain_name}.graph.info.part."
 
-    with open("MPAS-Model/namelist.init_atmosphere", "w") as f:
+    with open(fpath, "w") as f:
         nml.write(f)
 
 
 def prep_run_namelist(domain_name, init_date, flength):
-    nml = f90nml.read("MPAS-Model/namelist.atmosphere")
+    fpath = f"{ROOT_DIR}/MPAS-Model/namelist.atmosphere"
+    nml = f90nml.read(fpath)
 
     td = timedelta(hours=flength)
     run_duration_str = run_duration_format(td)
@@ -278,12 +343,13 @@ def prep_run_namelist(domain_name, init_date, flength):
 
     nml["nhyd_model"]["config_start_time"] = start_str
     nml["nhyd_model"]["config_run_duration"] = run_duration_str
+
     nml["limited_area"]["config_apply_lbcs"] = True
     nml["decomposition"][
         "config_block_decomp_file_prefix"
     ] = f"{domain_name}.graph.info.part."
 
-    with open("MPAS-Model/namelist.atmosphere", "w") as f:
+    with open(fpath, "w") as f:
         nml.write(f)
 
 
@@ -303,6 +369,27 @@ def prep_run(domain_name, init_date, flength):
 
 
 if __name__ == "__main__":
-    flength = 12
-    init = download_latest_grib(flength)
-    update_wps_namelist(init, flength)
+    flength = 3
+    domain_name = "synoptic25km"
+    SCRIPT_DIR = f"{ROOT_DIR}/scripts"
+    init_dt = latest_gfs_init_date()
+
+    print("Cleaning generated files from running model")
+    subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
+    init_dt = download_latest_grib(flength, globe=True)
+
+    print("WPS")
+    update_wps_namelist(init_dt, flength)
+    subprocess.call(f"{SCRIPT_DIR}/run_wps.sh")
+
+    print("Initial Conditions")
+    prep_initial_conditions(domain_name, init_dt, flength)
+    subprocess.call(f"{SCRIPT_DIR}/run_init_atmosphere.sh")
+
+    print("Boundary Conditions")
+    prep_lbc(domain_name, init_dt, flength)
+    subprocess.call(f"{SCRIPT_DIR}/run_init_atmosphere.sh")
+
+    print("Running")
+    prep_run(domain_name, init_dt, flength)
+    subprocess.call(f"{SCRIPT_DIR}/run_atmosphere.sh")
