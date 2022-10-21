@@ -95,7 +95,7 @@ def download_filtered_grib(init_date, cycle, fhour):
     """Downloads gribs filtered to selected area"""
 
     grib_dir = f"{ROOT_DIR}/data/grib"
-    fname = grib_filename(date, cycle, fhour, "gfs")
+    fname = grib_filename(init_date, cycle, fhour, "gfs")
 
     fhour = str(fhour).zfill(3)
     cycle = str(cycle).zfill(2)
@@ -167,8 +167,8 @@ def download_0p50_gribs(date, flength):
     return responses
 
 
-def download_gribs(date, flength):
-    cycle = str(date.hour).zfill(2)
+def download_gribs(init_date, flength):
+    cycle = str(init_date.hour).zfill(2)
 
     fhours = [i for i in range(flength + 1)]
     init_dates = [init_date for i in fhours]
@@ -267,16 +267,13 @@ def prep_run_streams(domain_name):
 
         if node.attrib["name"] == "lbc_in":
             node.attrib["input_interval"] = lbc_interval
-            print("SET", lbc_interval)
 
     new_xml = ET.tostring(root)
-    print(new_xml)
     pretty_xml = minidom.parseString(new_xml).toprettyxml(indent="    ")
     pretty_xml_lines = pretty_xml.splitlines()
     pretty_xml_no_version = pretty_xml_lines[1:]
     # remove excessive blank lines
     pretty_xml = os.linesep.join([s for s in pretty_xml_no_version if s.strip()])
-    # print(pretty_xml)
 
     with open(fpath, "w") as f:
         f.write(pretty_xml)
@@ -370,13 +367,13 @@ def prep_run(domain_name, init_date, flength):
 
 if __name__ == "__main__":
     flength = 3
-    domain_name = "synoptic25km"
+    domain_name = "west12km"
     SCRIPT_DIR = f"{ROOT_DIR}/scripts"
     init_dt = latest_gfs_init_date()
 
     print("Cleaning generated files from running model")
     subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
-    init_dt = download_latest_grib(flength, globe=True)
+    init_dt = download_latest_grib(flength, globe=False)
 
     print("WPS")
     update_wps_namelist(init_dt, flength)
