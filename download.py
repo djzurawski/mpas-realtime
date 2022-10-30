@@ -6,12 +6,18 @@ import os
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 import subprocess
+import xarray as xr
+import numpy as np
 
 NAMELIST_DATE_FORMAT = "%Y-%m-%d_%H:%M:%S"
 RUN_DURATION_FORMAT = "%-d_%H:%M:%S"
 
 ROOT_DIR = os.environ["ROOT_DIR"]
 NCPUS = 6
+
+RADIAN_TO_DEGREE = 180 / np.pi
+
+DEFAULT_EXTENT = ((-135, -80), (20, 60))
 
 
 PREPROC_STAGES = {
@@ -22,6 +28,38 @@ PREPROC_STAGES = {
     "config_input_sst": False,
     "config_frac_seaice": True,
 }
+
+
+def longtitude_360_to_180(lon):
+    "Converts 0:360 longitude to -180:180"
+    return ((lon + 360) % 180) - 180
+
+
+def get_mesh_extent(fpath):
+    ds = xr.open_dataset(fpath)
+
+    lat_min = np.min(ds.latVertex.values) * RADIAN_TO_DEGREE
+    lat_max = np.max(ds.latVertex.values) * RADIAN_TO_DEGREE
+
+    lon_min = np.min(ds.lonVertex.values) * RADIAN_TO_DEGREE
+    lon_max = np.max(ds.lonVertex.values) * RADIAN_TO_DEGREE
+
+    lon_min = longtitude_360_to_180(lon_min)
+    lon_max = longtitude_360_to_180(lon_max)
+
+    return (lon_min, lon_max), (lat_min, lat_max)
+
+
+def add_extent_buffer(extent, bufsize=1):
+    (lon_min, lon_max), (lat_min, lat_max) = extent
+
+    lon_min -= bufsize
+    lon_max += bufsize
+
+    lat_min -= bufsize
+    lat_max += bufsize
+
+    return (lon_min, lon_max), (lat_min, lat_max)
 
 
 def run_duration_format(td):
@@ -91,7 +129,7 @@ def grib_filename(valid_dt, cycle, fhour, model="gfs"):
     return fname
 
 
-def download_filtered_grib(init_date, cycle, fhour):
+def download_filtered_grib(init_date, cycle, fhour, extent=DEFAULT_EXTENT):
     """Downloads gribs filtered to selected area"""
 
     grib_dir = f"{ROOT_DIR}/data/grib"
@@ -100,10 +138,7 @@ def download_filtered_grib(init_date, cycle, fhour):
     fhour = str(fhour).zfill(3)
     cycle = str(cycle).zfill(2)
 
-    leflon = -135
-    rightlon = -80
-    toplat = 60
-    bottomlat = 20
+    (leflon, rightlon), (bottomlat, toplat) = extent
 
     init_day_of_year = init_date.strftime("%Y%m%d")
 
@@ -167,25 +202,28 @@ def download_0p50_gribs(date, flength):
     return responses
 
 
-def download_gribs(init_date, flength):
+def download_gribs(init_date, flength, extent=DEFAULT_EXTENT):
     cycle = str(init_date.hour).zfill(2)
 
     fhours = [i for i in range(flength + 1)]
     init_dates = [init_date for i in fhours]
     cycles = [cycle for i in fhours]
+    extents = [extent for i in fhours]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        responses = executor.map(download_filtered_grib, init_dates, cycles, fhours)
+        responses = executor.map(
+            download_filtered_grib, init_dates, cycles, fhours, extents
+        )
 
     return responses
 
 
-def download_latest_grib(flength=12, globe=False):
+def download_latest_grib(flength=12, globe=False, extent=DEFAULT_EXTENT):
     date = latest_gfs_init_date()
     if globe:
         download_0p50_gribs(date, flength)
     else:
-        download_gribs(date, flength)
+        download_gribs(date, flength, extent=extent)
     return date
 
 
@@ -368,15 +406,19 @@ def prep_run(domain_name, init_date, flength, resolution_km):
 
 
 if __name__ == "__main__":
-    flength = 3
-    domain_name = "west12km"
-    resolution_km = 12
+    flength = 2
+    domain_name = "westNA15km"
+    resolution_km = 15
     SCRIPT_DIR = f"{ROOT_DIR}/scripts"
     init_dt = latest_gfs_init_date()
 
+    static_path = f"{ROOT_DIR}/MPAS-Model/{domain_name}.static.nc"
+    extent = get_mesh_extent(static_path)
+    buffered_extent = add_extent_buffer(extent)
+
     print("Cleaning generated files from running model")
     subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
-    init_dt = download_latest_grib(flength, globe=False)
+    init_dt = download_latest_grib(flength, globe=False, extent=buffered_extent)
 
     print("WPS")
     update_wps_namelist(init_dt, flength)
