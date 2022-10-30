@@ -330,6 +330,11 @@ def prep_initial_namelist(domain_name, init_date, flength):
     nml["nhyd_model"]["config_start_time"] = start_str
     nml["nhyd_model"]["config_stop_time"] = end_str
 
+    nml["dimensions"]["config_nvertlevels"] = 55
+    nml["dimensions"]["config_nsoillevels"] = 4
+    nml["dimensions"]["config_nfglevels"] = 38
+    nml["dimensions"]["config_nfgsoillevels"] = 4
+
     nml["vertical_grid"]["config_blend_bdy_terrain"] = True
 
     nml["preproc_stages"] = PREPROC_STAGES
