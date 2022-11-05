@@ -1,4 +1,4 @@
-"""Creates plts using the raw output from MPAS and not using the convert_mpas
+"""Creates plots using the raw output from MPAS and not using the convert_mpas
    utility"""
 
 import xarray as xr
@@ -13,6 +13,7 @@ from metpy.plots import USCOUNTIES
 import simplekml
 from dateutil.parser import isoparse
 from datetime import timezone
+import multiprocessing as mp
 
 RADIAN_TO_DEGREE = 180 / np.pi
 M_PER_S_TO_KT = 1.94384
@@ -266,7 +267,6 @@ def add_wind_barbs(
 
 
 def add_relative_humidity(fig, ax, lons, lats, rh):
-    print(np.nanmin(rh), np.nanmax(rh))
 
     rh_levels = [
         0,
@@ -300,11 +300,12 @@ def add_relative_humidity(fig, ax, lons, lats, rh):
         lons,
         lats,
         rh,
+        #rh_levels,
         levels=rh_levels,
         cmap=cmap,
         norm=norm,
-        transform=crs.PlateCarree(),
-        transform_first=True,
+        #transform=crs.PlateCarree(),
+        extend='max'
     )
 
     fig.colorbar(rh_contours, ax=ax, orientation="vertical", pad=0.05)
@@ -335,7 +336,7 @@ def plot_title(init_dt, valid_dt, fhour, field_name, model_name="", field_units=
     return f"{model_name}   Init: {init_str}    Valid: {valid_str}    {field_name} ({field_units})   Hour: {fhour}"
 
 
-def plot_rain(outfile_path, mesh_path):
+def accumulated_precip_plot(diag_ds, mesh_ds):
 
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
@@ -343,23 +344,14 @@ def plot_rain(outfile_path, mesh_path):
     Note: Some fields are on cell coordinates and some are on vertex coordinates
            hence the _cell and _vert suffix
     """
-    # ds = xr.open_dataset("diag.2022-10-16_01.00.00.nc")
-    # ds = xr.open_dataset("diag.2022-10-16_14.00.00.nc")
-    ds = xr.open_dataset("diag.2022-10-16_21.00.00.nc")
 
-    ds_cells = xr.open_dataset("colorado-small.static.nc")
+    init_dt, valid_dt, fhour = ds_times(diag_ds)
 
-    init_dt, valid_dt, fhour = ds_times(ds)
-
-    lats_cell = ds_cells["latCell"] * RADIAN_TO_DEGREE
-    lons_cell = ds_cells["lonCell"] * RADIAN_TO_DEGREE
+    lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
+    lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
     lons_cell = longtitude_360_to_180(lons_cell)
 
-    lats_vert = ds_cells["latVertex"] * RADIAN_TO_DEGREE
-    lons_vert = ds_cells["lonVertex"] * RADIAN_TO_DEGREE
-    lons_vert = longtitude_360_to_180(lons_vert)
-
-    rain_in = ds["rainnc"][0] * MM_TO_IN
+    rain_in = diag_ds["rainnc"][0] * MM_TO_IN
 
     fig, ax = basemap()
 
@@ -377,12 +369,12 @@ def plot_rain(outfile_path, mesh_path):
         tranform=crs.PlateCarree(),
     )
     fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
-    title = plot_title(init_dt, valid_dt, fhour, "Rel Vort", "Dan MPAS", "10^5 s^-1")
+    title = plot_title(init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS", "in")
     ax.set_title(title)
     fig.show()
 
 
-def plot_500_vorticity(outfile_path, mesh_path):
+def plot_500_vorticity(diag_ds, mesh_ds):
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
 
@@ -390,29 +382,22 @@ def plot_500_vorticity(outfile_path, mesh_path):
            hence the _cell and _vert suffix
     """
 
-    # ds = xr.open_dataset("diag.2022-10-16_01.00.00.nc")
-    ds = xr.open_dataset("diag.2022-10-15_18.00.00.nc")
-    ds = xr.open_dataset("diag.2022-10-16_14.00.00.nc")
-    ds = xr.open_dataset("diag.2022-10-16_21.00.00.nc")
+    init_dt, valid_dt, fhour = ds_times(diag_ds)
 
-    ds_cells = xr.open_dataset("colorado-small.static.nc")
-
-    init_dt, valid_dt, fhour = ds_times(ds)
-
-    lats_cell = ds_cells["latCell"] * RADIAN_TO_DEGREE
-    lons_cell = ds_cells["lonCell"] * RADIAN_TO_DEGREE
+    lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
+    lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
     lons_cell = longtitude_360_to_180(lons_cell)
 
-    lats_vert = ds_cells["latVertex"] * RADIAN_TO_DEGREE
-    lons_vert = ds_cells["lonVertex"] * RADIAN_TO_DEGREE
+    lats_vert = mesh_ds["latVertex"] * RADIAN_TO_DEGREE
+    lons_vert = mesh_ds["lonVertex"] * RADIAN_TO_DEGREE
     lons_vert = longtitude_360_to_180(lons_vert)
 
-    hgt_500_cell = ds["height_500hPa"][0]
+    hgt_500_cell = diag_ds["height_500hPa"][0]
     hgt_500_cell_dm = hgt_500_cell / 10
     hgt_levels = np.arange(492, 594, 3)
-    u_500_cell = ds["uzonal_500hPa"][0] * M_PER_S_TO_KT
-    v_500_cell = ds["umeridional_500hPa"][0] * M_PER_S_TO_KT
-    vort_500_vert = ds["vorticity_500hPa"][0]
+    u_500_cell = diag_ds["uzonal_500hPa"][0] * M_PER_S_TO_KT
+    v_500_cell = diag_ds["umeridional_500hPa"][0] * M_PER_S_TO_KT
+    vort_500_vert = diag_ds["vorticity_500hPa"][0]
     vort_500_vert_scaled = vort_500_vert * 10**5
 
     grid_500_x, grid_500_y, grid_500_u = grid_data(lons_cell, lats_cell, u_500_cell)
@@ -442,7 +427,7 @@ def plot_500_vorticity(outfile_path, mesh_path):
     fig.show()
 
 
-def plot_700_rh(outfile_path, mesh_path):
+def plot_700_rh(diag_ds, mesh_ds):
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
 
@@ -450,31 +435,25 @@ def plot_700_rh(outfile_path, mesh_path):
            hence the _cell and _vert suffix
     """
 
-    # ds = xr.open_dataset("diag.2022-10-16_01.00.00.nc")
-    ds = xr.open_dataset("diag.2022-10-15_18.00.00.nc")
-    ds = xr.open_dataset("diag.2022-10-16_14.00.00.nc")
-    ds = xr.open_dataset("diag.2022-10-16_21.00.00.nc")
+    init_dt, valid_dt, fhour = ds_times(diag_ds)
 
-    ds_cells = xr.open_dataset("colorado-small.static.nc")
-
-    init_dt, valid_dt, fhour = ds_times(ds)
-
-    lats_cell = ds_cells["latCell"] * RADIAN_TO_DEGREE
-    lons_cell = ds_cells["lonCell"] * RADIAN_TO_DEGREE
+    lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
+    lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
     lons_cell = longtitude_360_to_180(lons_cell)
 
-    rh_700 = ds["relhum_700hPa"][0]
-    hgt_700_cell = ds["height_700hPa"][0]
+    rh_700 = diag_ds["relhum_700hPa"][0]
+    hgt_700_cell = diag_ds["height_700hPa"][0]
     hgt_700_cell_dm = hgt_700_cell / 10
     hgt_700_levels = np.arange(180, 420, 3)
 
-    u_700_cell = ds["uzonal_700hPa"][0] * M_PER_S_TO_KT
-    v_700_cell = ds["umeridional_700hPa"][0] * M_PER_S_TO_KT
+    u_700_cell = diag_ds["uzonal_700hPa"][0] * M_PER_S_TO_KT
+    v_700_cell = diag_ds["umeridional_700hPa"][0] * M_PER_S_TO_KT
 
     grid_700_x, grid_700_y, grid_700_u = grid_data(lons_cell, lats_cell, u_700_cell)
     _, _, grid_700_v = grid_data(lons_cell, lats_cell, v_700_cell)
 
     fig, ax = basemap()
+
     fig, ax = add_geopotential_hgt(
         fig,
         ax,
@@ -483,7 +462,9 @@ def plot_700_rh(outfile_path, mesh_path):
         hgt_700_cell_dm,
         hgt_700_levels,
     )
+
     fig, ax = add_relative_humidity(fig, ax, lons_cell, lats_cell, rh_700)
+
     fig, ax = add_wind_barbs(
         fig,
         ax,
@@ -493,9 +474,10 @@ def plot_700_rh(outfile_path, mesh_path):
         grid_700_v,
     )
 
-    title = plot_title(init_dt, valid_dt, fhour, "Relative Humidity", "Dan MPAS", "%")
+    title = plot_title(init_dt, valid_dt, fhour, "700mb RH", "Dan MPAS", "%")
     ax.set_title(title)
     fig.show()
+
 
 
 def interp_terrain(grid_path):
@@ -547,3 +529,35 @@ def make_mesh(grid_path):
         ls.style.linestyle.width = 1
         ls.style.linestyle.color = simplekml.Color.blue
     kml.save("mpas_mesh.kml")
+
+
+def error_callback(e):
+    print(e)
+
+
+def main():
+    domain_name = "colorado12km"
+    file_dir = "products/"
+    files = sorted([f for f in os.listdir(file_dir) if ".nc" in f])
+
+    mesh_ds = xr.dataset(f"{domain_name}.static.nc")
+
+    with mp.Pool() as pool:
+        for f in files:
+            diag_ds = xr.dataset(f)
+
+            pool.apply_async(
+                plot_500_vorticity, (diag_ds, mesh_ds), error_callback=error_callback
+            )
+
+            pool.apply_async(
+                plot_700_rh, (diag_ds, mesh_ds), error_callback=error_callback
+            )
+
+            pool.apply_async(
+                accumulated_precip_plot, (files, mesh_ds), error_callback=error_callback
+            )
+
+            pool.apply_async(
+                accumulated_swe_plot, (files, mesh_ds), error_callback=error_callback
+            )
