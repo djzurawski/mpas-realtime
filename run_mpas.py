@@ -411,7 +411,7 @@ def prep_run(domain_name, init_date, flength, resolution_km):
 
 
 if __name__ == "__main__":
-    flength = 6
+    flength = 24
     domain_name = "colorado12km"
     resolution_km = 12
     SCRIPT_DIR = f"{ROOT_DIR}/scripts"
@@ -442,4 +442,6 @@ if __name__ == "__main__":
     prep_run(domain_name, init_dt, flength, resolution_km)
     subprocess.call(f"{SCRIPT_DIR}/run_atmosphere.sh")
 
-    subprocess.call(f"mv {ROOT_DIR}/MPAS-Model/diag* {ROOT_DIR}/products/mpas/", shell=True)
+    subprocess.call(
+        f"mv {ROOT_DIR}/MPAS-Model/diag* {ROOT_DIR}/products/mpas/", shell=True
+    )

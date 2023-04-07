@@ -1,6 +1,7 @@
 """Creates plots using the raw output from MPAS and not using the convert_mpas
    utility"""
 
+import os
 import xarray as xr
 import cartopy.crs as crs
 from cartopy.feature import NaturalEarthFeature
@@ -14,10 +15,12 @@ import simplekml
 from dateutil.parser import isoparse
 from datetime import timezone
 import multiprocessing as mp
+import argparse
 
 RADIAN_TO_DEGREE = 180 / np.pi
 M_PER_S_TO_KT = 1.94384
 MM_TO_IN = 0.03937008
+
 
 VORT_CMAP = (
     np.array(
@@ -300,12 +303,12 @@ def add_relative_humidity(fig, ax, lons, lats, rh):
         lons,
         lats,
         rh,
-        #rh_levels,
+        # rh_levels,
         levels=rh_levels,
         cmap=cmap,
         norm=norm,
-        #transform=crs.PlateCarree(),
-        extend='max'
+        # transform=crs.PlateCarree(),
+        extend="max",
     )
 
     fig.colorbar(rh_contours, ax=ax, orientation="vertical", pad=0.05)
@@ -336,7 +339,7 @@ def plot_title(init_dt, valid_dt, fhour, field_name, model_name="", field_units=
     return f"{model_name}   Init: {init_str}    Valid: {valid_str}    {field_name} ({field_units})   Hour: {fhour}"
 
 
-def accumulated_precip_plot(diag_ds, mesh_ds):
+def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
@@ -346,6 +349,8 @@ def accumulated_precip_plot(diag_ds, mesh_ds):
     """
 
     init_dt, valid_dt, fhour = ds_times(diag_ds)
+    cycle = str(init_dt.hour).zfill(2)
+    fhour_str = str(fhour).zfill(2)
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
@@ -371,10 +376,20 @@ def accumulated_precip_plot(diag_ds, mesh_ds):
     fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
     title = plot_title(init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS", "in")
     ax.set_title(title)
-    fig.show()
+
+    print("saving", f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png")
+    fig.savefig(
+        f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png",
+        bbox_inches="tight",
+    )
+    plt.close(fig)
 
 
-def plot_500_vorticity(diag_ds, mesh_ds):
+    # fig.show()
+
+
+def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
+
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
 
@@ -383,6 +398,55 @@ def plot_500_vorticity(diag_ds, mesh_ds):
     """
 
     init_dt, valid_dt, fhour = ds_times(diag_ds)
+    cycle = str(init_dt.hour).zfill(2)
+    fhour_str = str(fhour).zfill(2)
+
+    lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
+    lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
+    lons_cell = longtitude_360_to_180(lons_cell)
+
+    rain_in = diag_ds["snownc"][0] * MM_TO_IN
+
+    fig, ax = basemap()
+
+    cmap = mcolors.ListedColormap(PRECIP_CMAP_DATA)
+    norm = mcolors.BoundaryNorm(PRECIP_CLEVS, cmap.N)
+
+    rain_contours = ax.tricontourf(
+        lons_cell,
+        lats_cell,
+        rain_in,
+        PRECIP_CLEVS,
+        levels=PRECIP_CLEVS,
+        cmap=cmap,
+        norm=norm,
+        tranform=crs.PlateCarree(),
+    )
+    fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
+    title = plot_title(init_dt, valid_dt, fhour, "Accum Swe", "Dan MPAS", "in")
+    ax.set_title(title)
+
+    print("saving", f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png")
+    fig.savefig(
+        f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png",
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+
+    # fig.show()
+
+
+def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
+    """outfile_path: Path of MPAS output file (history*, diagnostics*)
+       mesh_path: Path of static/init mesh to provide cell lat/lons.
+
+    Note: Some fields are on cell coordinates and some are on vertex coordinates
+           hence the _cell and _vert suffix
+    """
+
+    init_dt, valid_dt, fhour = ds_times(diag_ds)
+    cycle = str(init_dt.hour).zfill(2)
+    fhour_str = str(fhour).zfill(2)
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
@@ -405,6 +469,7 @@ def plot_500_vorticity(diag_ds, mesh_ds):
     _, _, grid_500_v = grid_data(lons_cell, lats_cell, v_500_cell)
 
     fig, ax = basemap()
+
     fig, ax = add_geopotential_hgt(
         fig, ax, lons_cell, lats_cell, hgt_500_cell_dm, hgt_levels
     )
@@ -421,13 +486,22 @@ def plot_500_vorticity(diag_ds, mesh_ds):
 
     ax.set_xlim((np.min(lons_vert), np.max(lons_vert)))
     ax.set_ylim((np.min(lats_vert), np.max(lats_vert)))
+    """
+    """
 
     title = plot_title(init_dt, valid_dt, fhour, "Rel Vort", "Dan MPAS", "10^5 s^-1")
     ax.set_title(title)
-    fig.show()
+
+    print("saving", f"products/images/{domain_name}-{cycle}z-vort500-{fhour_str}.png")
+    fig.savefig(
+        f"products/images/{domain_name}-{cycle}z-vort500-{fhour_str}.png",
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+    # fig.show()
 
 
-def plot_700_rh(diag_ds, mesh_ds):
+def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
 
@@ -436,6 +510,8 @@ def plot_700_rh(diag_ds, mesh_ds):
     """
 
     init_dt, valid_dt, fhour = ds_times(diag_ds)
+    cycle = str(init_dt.hour).zfill(2)
+    fhour_str = str(fhour).zfill(2)
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
@@ -476,8 +552,12 @@ def plot_700_rh(diag_ds, mesh_ds):
 
     title = plot_title(init_dt, valid_dt, fhour, "700mb RH", "Dan MPAS", "%")
     ax.set_title(title)
-    fig.show()
-
+    print("saving", f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png")
+    fig.savefig(
+        f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png",
+        bbox_inches="tight",
+    )
+    plt.close(fig)
 
 
 def interp_terrain(grid_path):
@@ -535,29 +615,70 @@ def error_callback(e):
     print(e)
 
 
+def vort_500_plots(diag_files, mesh_file):
+    mesh_ds = xr.open_dataset(mesh_file)
+    for diag_file in diag_files:
+        diag_ds = xr.open_dataset(diag_file)
+        plot_500_vorticity(diag_ds, mesh_ds)
+
+
+def rh_700_plots(diag_files, mesh_file):
+    mesh_ds = xr.open_dataset(mesh_file)
+    for diag_file in diag_files:
+        diag_ds = xr.open_dataset(diag_file)
+        plot_700_rh(diag_ds, mesh_ds)
+
+
+def swe_plots(diag_files, mesh_file):
+    mesh_ds = xr.open_dataset(mesh_file)
+    for diag_file in diag_files:
+        diag_ds = xr.open_dataset(diag_file)
+        accumulated_swe_plot(diag_ds, mesh_ds)
+
+
+def precip_plots(diag_files, mesh_file):
+    mesh_ds = xr.open_dataset(mesh_file)
+    for diag_file in diag_files:
+        diag_ds = xr.open_dataset(diag_file)
+        accumulated_precip_plot(diag_ds, mesh_ds)
+
+
 def main():
     domain_name = "colorado12km"
-    file_dir = "products/"
-    files = sorted([f for f in os.listdir(file_dir) if ".nc" in f])
+    file_dir = "products/mpas"
+    files = sorted([f"{file_dir}/{f}" for f in os.listdir(file_dir) if ".nc" in f])
 
-    mesh_ds = xr.dataset(f"{domain_name}.static.nc")
+    # mesh_ds = xr.open_dataset(f"MPAS-Model/{domain_name}.static.nc")
+    mesh_file = f"MPAS-Model/{domain_name}.static.nc"
 
     with mp.Pool() as pool:
-        for f in files:
-            diag_ds = xr.dataset(f)
 
-            pool.apply_async(
-                plot_500_vorticity, (diag_ds, mesh_ds), error_callback=error_callback
-            )
+        """
+        vort_500_plots(files, mesh_file)
+        rh_700_plots(files, mesh_file)
+        precip_plots(files, mesh_file)
+        swe_plots(files, mesh_file)
+        """
 
-            pool.apply_async(
-                plot_700_rh, (diag_ds, mesh_ds), error_callback=error_callback
-            )
+        pool.apply_async(vort_500_plots, (files, mesh_file), error_callback=error_callback)
+        pool.apply_async(rh_700_plots, (files, mesh_file), error_callback=error_callback)
+        pool.apply_async(precip_plots, (files, mesh_file), error_callback=error_callback)
+        #pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
 
-            pool.apply_async(
-                accumulated_precip_plot, (files, mesh_ds), error_callback=error_callback
-            )
+        pool.close()
+        pool.join()
 
-            pool.apply_async(
-                accumulated_swe_plot, (files, mesh_ds), error_callback=error_callback
-            )
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--domain",
+        type=str,
+        default="colorado12km",
+        help="Domain name",
+    )
+    args = parser.parse_args()
+
+    print("Domain", args.domain)
+    main()
