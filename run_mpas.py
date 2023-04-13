@@ -318,7 +318,7 @@ def prep_run_streams(domain_name):
         f.write(pretty_xml)
 
 
-def prep_initial_namelist(domain_name, init_date, flength):
+def prep_initial_namelist(domain_name, init_date, flength, limited_area=True):
     fpath = f"{ROOT_DIR}/MPAS-Model/namelist.init_atmosphere"
     nml = f90nml.read(fpath)
 
@@ -336,7 +336,7 @@ def prep_initial_namelist(domain_name, init_date, flength):
     nml["dimensions"]["config_nfglevels"] = 38
     nml["dimensions"]["config_nfgsoillevels"] = 4
 
-    nml["vertical_grid"]["config_blend_bdy_terrain"] = True
+    nml["vertical_grid"]["config_blend_bdy_terrain"] = limited_area
 
     nml["preproc_stages"] = PREPROC_STAGES
     nml["decomposition"][
@@ -374,7 +374,9 @@ def prep_lbc_namelist(domain_name, init_date, flength):
         nml.write(f)
 
 
-def prep_run_namelist(domain_name, init_date, flength, resolution_km):
+def prep_run_namelist(
+    domain_name, init_date, flength, resolution_km, limited_area=True
+):
     fpath = f"{ROOT_DIR}/MPAS-Model/namelist.atmosphere"
     nml = f90nml.read(fpath)
 
@@ -382,12 +384,18 @@ def prep_run_namelist(domain_name, init_date, flength, resolution_km):
     run_duration_str = run_duration_format(td)
     start_str = init_date.strftime(NAMELIST_DATE_FORMAT)
 
+    if limited_area:
+        config_init_case = 9
+    else:
+        config_init_case = 7
+
+    nml["nhyd_model"]["config_init_case"] = config_init_case
     nml["nhyd_model"]["config_start_time"] = start_str
     nml["nhyd_model"]["config_run_duration"] = run_duration_str
     nml["nhyd_model"]["config_dt"] = 6 * resolution_km
     nml["nhyd_model"]["config_len_disp"] = 1000 * resolution_km
 
-    nml["limited_area"]["config_apply_lbcs"] = True
+    nml["limited_area"]["config_apply_lbcs"] = limited_area
     nml["decomposition"][
         "config_block_decomp_file_prefix"
     ] = f"{domain_name}.graph.info.part."
@@ -411,7 +419,33 @@ def prep_run(domain_name, init_date, flength, resolution_km):
     prep_run_namelist(domain_name, init_date, flength, resolution_km)
 
 
-def main(domain_name="colorado12km", resolution_km=12, flength=12):
+def global_simulation(domain_name="colorado12km", resolution_km=12, flength=12):
+    SCRIPT_DIR = f"{ROOT_DIR}/scripts"
+    init_dt = latest_gfs_init_date()
+
+    print("Cleaning generated files from running model")
+    subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
+    # Only need to download initial conditions
+    init_dt = download_latest_grib(1, globe=True)
+
+    print("WPS")
+    update_wps_namelist(init_dt, flength)
+    subprocess.call(f"{SCRIPT_DIR}/run_wps.sh")
+
+    print("Initial Conditions")
+    prep_initial_conditions(domain_name, init_dt, flength, limited_area=False)
+    subprocess.call(f"{SCRIPT_DIR}/run_init_atmosphere.sh")
+
+    print("Running")
+    prep_run(domain_name, init_dt, flength, resolution_km, limited_area=False)
+    subprocess.call(f"{SCRIPT_DIR}/run_atmosphere.sh")
+
+    subprocess.call(
+        f"mv {ROOT_DIR}/MPAS-Model/diag* {ROOT_DIR}/products/mpas/", shell=True
+    )
+
+
+def limited_area_simulation(domain_name="colorado12km", resolution_km=12, flength=12):
     SCRIPT_DIR = f"{ROOT_DIR}/scripts"
     init_dt = latest_gfs_init_date()
 
@@ -443,6 +477,17 @@ def main(domain_name="colorado12km", resolution_km=12, flength=12):
     subprocess.call(
         f"mv {ROOT_DIR}/MPAS-Model/diag* {ROOT_DIR}/products/mpas/", shell=True
     )
+
+
+def main(domain_name="colorado12km", resolution_km=12, flength=12, limited_area=True):
+    if limited_area:
+        limited_area_simulation(
+            domain_name=domain_name, resolution_km=resolution_km, flength=flength
+        )
+    else:
+        global_simulation(
+            domain_name=domain_name, resolution_km=resolution_km, flength=flength
+        )
 
 
 if __name__ == "__main__":
