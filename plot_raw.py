@@ -196,7 +196,7 @@ def basemap(projection=crs.PlateCarree()):
     ax.add_feature(states, facecolor="none", edgecolor="black")
     ax.coastlines(border_scale, linewidth=0.8)
     ax.add_feature(states, facecolor="none", edgecolor="black")
-    ax.add_feature(USCOUNTIES.with_scale(county_scale), edgecolor="gray")
+    # ax.add_feature(USCOUNTIES.with_scale(county_scale), edgecolor="gray")
 
     return fig, ax
 
@@ -350,7 +350,7 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     init_dt, valid_dt, fhour = ds_times(diag_ds)
     cycle = str(init_dt.hour).zfill(2)
-    fhour_str = str(fhour).zfill(2)
+    fhour_str = "f" + str(fhour).zfill(2)
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
@@ -371,7 +371,7 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
         levels=PRECIP_CLEVS,
         cmap=cmap,
         norm=norm,
-        tranform=crs.PlateCarree(),
+        # tranform=crs.PlateCarree(),
     )
     fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
     title = plot_title(init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS", "in")
@@ -383,7 +383,6 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
         bbox_inches="tight",
     )
     plt.close(fig)
-
 
     # fig.show()
 
@@ -399,7 +398,7 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     init_dt, valid_dt, fhour = ds_times(diag_ds)
     cycle = str(init_dt.hour).zfill(2)
-    fhour_str = str(fhour).zfill(2)
+    fhour_str = "f" + str(fhour).zfill(2)
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
@@ -446,7 +445,7 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     init_dt, valid_dt, fhour = ds_times(diag_ds)
     cycle = str(init_dt.hour).zfill(2)
-    fhour_str = str(fhour).zfill(2)
+    fhour_str = "f" + str(fhour).zfill(2)
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
@@ -511,7 +510,7 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     init_dt, valid_dt, fhour = ds_times(diag_ds)
     cycle = str(init_dt.hour).zfill(2)
-    fhour_str = str(fhour).zfill(2)
+    fhour_str = "f" + str(fhour).zfill(2)
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
@@ -615,36 +614,48 @@ def error_callback(e):
     print(e)
 
 
-def vort_500_plots(diag_files, mesh_file):
+def vort_500_plots(diag_files, mesh_file, domain_name):
     mesh_ds = xr.open_dataset(mesh_file)
     for diag_file in diag_files:
-        diag_ds = xr.open_dataset(diag_file)
-        plot_500_vorticity(diag_ds, mesh_ds)
+        try:
+            diag_ds = xr.open_dataset(diag_file)
+            plot_500_vorticity(diag_ds, mesh_ds, domain_name)
+        except Exception as e:
+            print("vort 500 plot exception: ", str(e))
 
 
-def rh_700_plots(diag_files, mesh_file):
+def rh_700_plots(diag_files, mesh_file, domain_name):
     mesh_ds = xr.open_dataset(mesh_file)
     for diag_file in diag_files:
-        diag_ds = xr.open_dataset(diag_file)
-        plot_700_rh(diag_ds, mesh_ds)
+        try:
+            diag_ds = xr.open_dataset(diag_file)
+            plot_700_rh(diag_ds, mesh_ds, domain_name)
+        except Exception as e:
+            print("rh 700 plot exception: ", str(e))
 
 
-def swe_plots(diag_files, mesh_file):
+def swe_plots(diag_files, mesh_file, domain_name):
     mesh_ds = xr.open_dataset(mesh_file)
     for diag_file in diag_files:
-        diag_ds = xr.open_dataset(diag_file)
-        accumulated_swe_plot(diag_ds, mesh_ds)
+        try:
+            diag_ds = xr.open_dataset(diag_file)
+            accumulated_swe_plot(diag_ds, mesh_ds, domain_name)
+        except Exception as e:
+            print("swe plot exception: ", str(e))
 
 
-def precip_plots(diag_files, mesh_file):
+def precip_plots(diag_files, mesh_file, domain_name):
     mesh_ds = xr.open_dataset(mesh_file)
     for diag_file in diag_files:
-        diag_ds = xr.open_dataset(diag_file)
-        accumulated_precip_plot(diag_ds, mesh_ds)
+        try:
+            diag_ds = xr.open_dataset(diag_file)
+            accumulated_precip_plot(diag_ds, mesh_ds, domain_name)
+        except Exception as e:
+            print("precip plot exception: ", str(e))
 
 
-def main():
-    domain_name = "colorado12km"
+def main(domain_name="colorado12km"):
+    # domain_name = "colorado12km"
     file_dir = "products/mpas"
     files = sorted([f"{file_dir}/{f}" for f in os.listdir(file_dir) if ".nc" in f])
 
@@ -654,16 +665,24 @@ def main():
     with mp.Pool() as pool:
 
         """
-        vort_500_plots(files, mesh_file)
+        vort_500_plots(files[0:1], mesh_file)
         rh_700_plots(files, mesh_file)
         precip_plots(files, mesh_file)
         swe_plots(files, mesh_file)
         """
 
-        pool.apply_async(vort_500_plots, (files, mesh_file), error_callback=error_callback)
-        pool.apply_async(rh_700_plots, (files, mesh_file), error_callback=error_callback)
-        pool.apply_async(precip_plots, (files, mesh_file), error_callback=error_callback)
-        #pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
+        pool.apply_async(
+            vort_500_plots,
+            (files, mesh_file, domain_name),
+            error_callback=error_callback,
+        )
+        pool.apply_async(
+            rh_700_plots, (files, mesh_file, domain_name), error_callback=error_callback
+        )
+        pool.apply_async(
+            precip_plots, (files, mesh_file, domain_name), error_callback=error_callback
+        )
+        # pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
 
         pool.close()
         pool.join()
@@ -681,4 +700,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print("Domain", args.domain)
-    main()
+    main(domain_name=args.domain)

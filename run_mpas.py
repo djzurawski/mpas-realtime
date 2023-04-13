@@ -8,6 +8,7 @@ import xml.dom.minidom as minidom
 import subprocess
 import xarray as xr
 import numpy as np
+import argparse
 
 NAMELIST_DATE_FORMAT = "%Y-%m-%d_%H:%M:%S"
 RUN_DURATION_FORMAT = "%-d_%H:%M:%S"
@@ -410,10 +411,7 @@ def prep_run(domain_name, init_date, flength, resolution_km):
     prep_run_namelist(domain_name, init_date, flength, resolution_km)
 
 
-if __name__ == "__main__":
-    flength = 24
-    domain_name = "colorado12km"
-    resolution_km = 12
+def main(domain_name="colorado12km", resolution_km=12, flength=12):
     SCRIPT_DIR = f"{ROOT_DIR}/scripts"
     init_dt = latest_gfs_init_date()
 
@@ -445,3 +443,18 @@ if __name__ == "__main__":
     subprocess.call(
         f"mv {ROOT_DIR}/MPAS-Model/diag* {ROOT_DIR}/products/mpas/", shell=True
     )
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--domain",
+        type=str,
+        default="colorado12km",
+        help="Domain name",
+    )
+    args = parser.parse_args()
+
+    print("Domain", args.domain)
+    main(domain_name=args.domain)
