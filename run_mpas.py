@@ -496,7 +496,21 @@ if __name__ == "__main__":
         default="colorado12km",
         help="Domain name",
     )
+    parser.add_argument(
+        "--resolution",
+        type=int,
+        default=25,
+        help="Horizontal spcaing in km",
+    )
+    parser.add_argument(
+        "--length",
+        type=int,
+        default=24,
+        help="Forecast length in hours",
+    )
     args = parser.parse_args()
+    domain = args.domain
+    resolution = args.resolution
+    flength = args.length
 
-    print("Domain", args.domain)
-    main(domain_name=args.domain)
+    main(domain_name=domain, resolution_km=resolution, flength=flength)
