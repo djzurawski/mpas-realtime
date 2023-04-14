@@ -11,3 +11,4 @@ rm ${ROOT_DIR}/MPAS-Model/diag*
 rm ${ROOT_DIR}/MPAS-Model/restore*
 rm ${ROOT_DIR}/MPAS-Model/FILE*
 rm ${ROOT_DIR}/MPAS-Model/*.init.nc
+rm ${ROOT_DIR}/products/mpas/*.nc

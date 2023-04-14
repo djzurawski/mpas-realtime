@@ -299,10 +299,14 @@ def prep_run_streams(domain_name):
     root = tree.getroot()
 
     lbc_interval = "1:00:00"
+    output_interval = "1:00:00"
 
     for node in root:
         if node.attrib["name"] == "input":
             node.attrib["filename_template"] = f"{domain_name}.init.nc"
+
+        if node.attrib["name"] == "diagnostics":
+            node.attrib["output_interval"] = output_interval
 
         if node.attrib["name"] == "lbc_in":
             node.attrib["input_interval"] = lbc_interval
@@ -384,12 +388,6 @@ def prep_run_namelist(
     run_duration_str = run_duration_format(td)
     start_str = init_date.strftime(NAMELIST_DATE_FORMAT)
 
-    if limited_area:
-        config_init_case = 9
-    else:
-        config_init_case = 7
-
-    nml["nhyd_model"]["config_init_case"] = config_init_case
     nml["nhyd_model"]["config_start_time"] = start_str
     nml["nhyd_model"]["config_run_duration"] = run_duration_str
     nml["nhyd_model"]["config_dt"] = 6 * resolution_km
@@ -455,7 +453,6 @@ def limited_area_simulation(domain_name="colorado12km", resolution_km=12, flengt
 
     print("Cleaning generated files from running model")
     subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
-    init_dt = download_latest_grib(flength, globe=False, extent=buffered_extent)
     init_dt = download_latest_grib(flength, globe=False, extent=buffered_extent)
 
     print("WPS")
