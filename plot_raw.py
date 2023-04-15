@@ -17,6 +17,9 @@ from datetime import timezone
 import multiprocessing as mp
 import argparse
 
+from geojson import GeometryCollection, LineString, Feature, FeatureCollection
+import json
+
 
 RADIAN_TO_DEGREE = 180 / np.pi
 M_PER_S_TO_KT = 1.94384
@@ -599,15 +602,14 @@ def interp_terrain(mesh_ds):
     plt.show()
 
 
-def make_mesh(grid_path):
+def make_mesh(mesh_ds):
     """Creates kml linestrings from mesh.
     Caution: Will take a long time to make.
              Will take long time to draw on map
              Only use on regional meshes"""
-    ds_cells = xr.open_dataset(grid_path)
-    verts_on_edge = ds_cells["verticesOnEdge"]
-    lats_vert = ds_cells["latVertex"] * RADIAN_TO_DEGREE
-    lons_vert = ds_cells["lonVertex"] * RADIAN_TO_DEGREE
+    verts_on_edge = mesh_ds["verticesOnEdge"]
+    lats_vert = mesh_ds["latVertex"] * RADIAN_TO_DEGREE
+    lons_vert = mesh_ds["lonVertex"] * RADIAN_TO_DEGREE
     lons_vert = longtitude_360_to_180(lons_vert)
 
     kml = simplekml.Kml()
@@ -626,6 +628,41 @@ def make_mesh(grid_path):
         ls.style.linestyle.width = 1
         ls.style.linestyle.color = simplekml.Color.blue
     kml.save("mpas_mesh.kml")
+
+
+def make_cell_geojson(mesh_ds):
+    "Creates lines of all cell edges"
+
+    verts_on_edge = mesh_ds["verticesOnEdge"]
+    lats_vert = mesh_ds["latVertex"] * RADIAN_TO_DEGREE
+    lons_vert = mesh_ds["lonVertex"] * RADIAN_TO_DEGREE
+    lons_vert = longtitude_360_to_180(lons_vert)
+
+    # preallocate list of len(verts_on_edge)
+
+    lines = np.empty(len(verts_on_edge), dtype=object)
+
+    num_verts = len(verts_on_edge)
+
+    for i, vert_idx in enumerate(verts_on_edge):
+        if i % 1000 == 0:
+            print(i, i / num_verts)
+
+        vert0 = vert_idx[0]
+        vert1 = vert_idx[1]
+
+        x1 = float(lons_vert[vert0 - 1])
+        x2 = float(lons_vert[vert1 - 1])
+
+        y1 = float(lats_vert[vert0 - 1])
+        y2 = float(lats_vert[vert1 - 1])
+
+        lines[i] = Feature(geometry=LineString([(x1, y1), (x2, y2)]))
+
+    collection = FeatureCollection(lines.tolist())
+
+    with open ("mpas_mesh.geojson", "w") as f:
+        json.dump(collection, f)
 
 
 def error_callback(e):
