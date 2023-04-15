@@ -17,9 +17,13 @@ from datetime import timezone
 import multiprocessing as mp
 import argparse
 
+
 RADIAN_TO_DEGREE = 180 / np.pi
 M_PER_S_TO_KT = 1.94384
 MM_TO_IN = 0.03937008
+
+NA_EXTENT = [-150, -60, 18, 80]
+CONUS_EXTENT = [-126, -66, 15, 61]
 
 
 VORT_CMAP = (
@@ -307,7 +311,7 @@ def add_relative_humidity(fig, ax, lons, lats, rh):
         levels=rh_levels,
         cmap=cmap,
         norm=norm,
-        # transform=crs.PlateCarree(),
+        transform=crs.PlateCarree(),
         extend="max",
     )
 
@@ -376,6 +380,7 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
     fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
     title = plot_title(init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS", "in")
     ax.set_title(title)
+    ax.set_extent(CONUS_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png")
     fig.savefig(
@@ -424,6 +429,7 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
     fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
     title = plot_title(init_dt, valid_dt, fhour, "Accum Swe", "Dan MPAS", "in")
     ax.set_title(title)
+    ax.set_extent(CONUS_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png")
     fig.savefig(
@@ -467,7 +473,7 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
     # grid_500_xvort, grid_500_yvort, grid_500_vert_scaled = grid_data(lons_vert, lats_vert, vort_500_vert_scaled)
     _, _, grid_500_v = grid_data(lons_cell, lats_cell, v_500_cell)
 
-    fig, ax = basemap()
+    fig, ax = basemap(crs.LambertConformal(central_longitude=-100))
 
     fig, ax = add_geopotential_hgt(
         fig, ax, lons_cell, lats_cell, hgt_500_cell_dm, hgt_levels
@@ -490,6 +496,7 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     title = plot_title(init_dt, valid_dt, fhour, "Rel Vort", "Dan MPAS", "10^5 s^-1")
     ax.set_title(title)
+    ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-vort500-{fhour_str}.png")
     fig.savefig(
@@ -527,14 +534,20 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     grid_700_x, grid_700_y, grid_700_u = grid_data(lons_cell, lats_cell, u_700_cell)
     _, _, grid_700_v = grid_data(lons_cell, lats_cell, v_700_cell)
 
-    fig, ax = basemap()
+    fig, ax = basemap(crs.LambertConformal(central_longitude=-100))
 
+    # Remove points where terrain is above the lowest contour level
+    # to not have messed up contour lines in these areas
+    unmasked = mesh_ds.ter < (10 * 180)
+    lons_cell_unmasked = lons_cell[unmasked]
+    lats_cell_unmasked = lats_cell[unmasked]
+    hgt_700_cell_dm_unmasked = hgt_700_cell_dm[unmasked]
     fig, ax = add_geopotential_hgt(
         fig,
         ax,
-        lons_cell,
-        lats_cell,
-        hgt_700_cell_dm,
+        lons_cell_unmasked,
+        lats_cell_unmasked,
+        hgt_700_cell_dm_unmasked,
         hgt_700_levels,
     )
 
@@ -551,6 +564,8 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     title = plot_title(init_dt, valid_dt, fhour, "700mb RH", "Dan MPAS", "%")
     ax.set_title(title)
+    ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
+
     print("saving", f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png")
     fig.savefig(
         f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png",
@@ -559,13 +574,12 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     plt.close(fig)
 
 
-def interp_terrain(grid_path):
+def interp_terrain(mesh_ds):
     "Plots terrain using two methods"
-    ds_cells = xr.open_dataset(grid_path)
-    lats_cell = ds_cells["latCell"] * RADIAN_TO_DEGREE
-    lons_cell = ds_cells["lonCell"] * RADIAN_TO_DEGREE
+    lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
+    lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
     lons_cell = longtitude_360_to_180(lons_cell)
-    ter = ds_cells["ter"]
+    ter = mesh_ds["ter"]
     ter_ft = ter * 3.281
 
     fig1, ax1 = basemap()
@@ -576,8 +590,12 @@ def interp_terrain(grid_path):
         lats_cell,
         ter_ft,
     )
-    ax2.tripcolor(lons_cell, lats_cell, ter_ft, transform=crs.PlateCarree())
-    ax1.contourf(grid_x, grid_y, grid_h, levels=500, transform=crs.PlateCarree())
+    tricolor = ax2.tripcolor(lons_cell, lats_cell, ter_ft, transform=crs.PlateCarree())
+    contourf = ax1.contourf(
+        grid_x, grid_y, grid_h, levels=500, transform=crs.PlateCarree()
+    )
+    plt.colorbar(tricolor)
+    plt.colorbar(contourf)
     plt.show()
 
 
