@@ -453,7 +453,8 @@ def limited_area_simulation(domain_name="colorado12km", resolution_km=12, flengt
 
     print("Cleaning generated files from running model")
     subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
-    init_dt = download_latest_grib(flength, globe=False, extent=buffered_extent)
+    global_conditions = (resolution_km >= 25)
+    init_dt = download_latest_grib(flength, globe=global_conditions, extent=buffered_extent)
 
     print("WPS")
     update_wps_namelist(init_dt, flength)
