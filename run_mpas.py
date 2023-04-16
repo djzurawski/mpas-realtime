@@ -402,9 +402,9 @@ def prep_run_namelist(
         nml.write(f)
 
 
-def prep_initial_conditions(domain_name, init_date, flength):
+def prep_initial_conditions(domain_name, init_date, flength, limited_area=True):
     prep_initial_streams(domain_name)
-    prep_initial_namelist(domain_name, init_date, flength)
+    prep_initial_namelist(domain_name, init_date, flength, limited_area=limited_area)
 
 
 def prep_lbc(domain_name, init_date, flength):
@@ -412,15 +412,18 @@ def prep_lbc(domain_name, init_date, flength):
     prep_lbc_namelist(domain_name, init_date, flength)
 
 
-def prep_run(domain_name, init_date, flength, resolution_km):
+def prep_run(domain_name, init_date, flength, resolution_km, limited_area=True):
     prep_run_streams(domain_name)
-    prep_run_namelist(domain_name, init_date, flength, resolution_km)
+    prep_run_namelist(
+        domain_name, init_date, flength, resolution_km, limited_area=limited_area
+    )
 
 
 def global_simulation(domain_name="colorado12km", resolution_km=12, flength=12):
     SCRIPT_DIR = f"{ROOT_DIR}/scripts"
     init_dt = latest_gfs_init_date()
 
+    """
     print("Cleaning generated files from running model")
     subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
     # Only need to download initial conditions
@@ -434,6 +437,7 @@ def global_simulation(domain_name="colorado12km", resolution_km=12, flength=12):
     prep_initial_conditions(domain_name, init_dt, flength, limited_area=False)
     subprocess.call(f"{SCRIPT_DIR}/run_init_atmosphere.sh")
 
+    """
     print("Running")
     prep_run(domain_name, init_dt, flength, resolution_km, limited_area=False)
     subprocess.call(f"{SCRIPT_DIR}/run_atmosphere.sh")
@@ -453,8 +457,10 @@ def limited_area_simulation(domain_name="colorado12km", resolution_km=12, flengt
 
     print("Cleaning generated files from running model")
     subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
-    global_conditions = (resolution_km >= 25)
-    init_dt = download_latest_grib(flength, globe=global_conditions, extent=buffered_extent)
+    global_conditions = resolution_km >= 25
+    init_dt = download_latest_grib(
+        flength, globe=global_conditions, extent=buffered_extent
+    )
 
     print("WPS")
     update_wps_namelist(init_dt, flength)
@@ -509,9 +515,21 @@ if __name__ == "__main__":
         default=24,
         help="Forecast length in hours",
     )
+
+    parser.add_argument(
+        "--limited-area",
+        action="store_true",
+    )
+
     args = parser.parse_args()
     domain = args.domain
     resolution = args.resolution
     flength = args.length
+    limited_area = args.limited_area
 
-    main(domain_name=domain, resolution_km=resolution, flength=flength)
+    main(
+        domain_name=domain,
+        resolution_km=resolution,
+        flength=flength,
+        limited_area=limited_area,
+    )

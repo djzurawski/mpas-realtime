@@ -19,6 +19,11 @@ import argparse
 
 from geojson import GeometryCollection, LineString, Feature, FeatureCollection
 import json
+import time
+
+import matplotlib.style as mplstyle
+
+mplstyle.use("fast")
 
 
 RADIAN_TO_DEGREE = 180 / np.pi
@@ -162,6 +167,18 @@ PRECIP_CMAP_DATA = (
 )
 
 
+def time_it(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"{func.__name__} took {elapsed_time:.5f} seconds to run.")
+        return result
+
+    return wrapper
+
+
 def longtitude_360_to_180(lon):
     "Converts 0:360 longitude to -180:180"
     return ((lon + 360) % 180) - 180
@@ -180,6 +197,7 @@ def grid_data(x, y, z, side_len=None):
 
     grid_x, grid_y = np.meshgrid(x_pts, y_pts)
     grid_z = griddata((x, y), z, (grid_x, grid_y), method="cubic")
+
     return grid_x, grid_y, grid_z
 
 
@@ -502,14 +520,17 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
     ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-vort500-{fhour_str}.png")
+    t0 = time.time()
     fig.savefig(
         f"products/images/{domain_name}-{cycle}z-vort500-{fhour_str}.png",
         bbox_inches="tight",
     )
+    print(time.time() - t0)
     plt.close(fig)
     # fig.show()
 
 
+@time_it
 def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
@@ -570,10 +591,12 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png")
+    t0 = time.time()
     fig.savefig(
         f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png",
         bbox_inches="tight",
     )
+    print(time.time() - t0)
     plt.close(fig)
 
 
@@ -661,7 +684,7 @@ def make_cell_geojson(mesh_ds):
 
     collection = FeatureCollection(lines.tolist())
 
-    with open ("mpas_mesh.geojson", "w") as f:
+    with open("mpas_mesh.geojson", "w") as f:
         json.dump(collection, f)
 
 
@@ -719,24 +742,25 @@ def main(domain_name="colorado12km"):
 
     with mp.Pool() as pool:
 
-        """
         vort_500_plots(files[0:1], mesh_file)
         rh_700_plots(files, mesh_file)
         precip_plots(files, mesh_file)
         swe_plots(files, mesh_file)
-        """
 
         pool.apply_async(
             vort_500_plots,
             (files, mesh_file, domain_name),
             error_callback=error_callback,
         )
+
         pool.apply_async(
             rh_700_plots, (files, mesh_file, domain_name), error_callback=error_callback
         )
+
         pool.apply_async(
             precip_plots, (files, mesh_file, domain_name), error_callback=error_callback
         )
+
         # pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
 
         pool.close()
