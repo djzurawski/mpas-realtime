@@ -179,9 +179,13 @@ def time_it(func):
     return wrapper
 
 
-def longtitude_360_to_180(lon):
+def longtitude_360_to_180(lons):
     "Converts 0:360 longitude to -180:180"
-    return ((lon + 360) % 180) - 180
+    # return lons[lons > 180] -= 360
+    None
+
+    # return ((lon + 360) % 180) - 180
+
 
 
 def grid_data(x, y, z, side_len=None):
@@ -379,7 +383,8 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
-    lons_cell = longtitude_360_to_180(lons_cell)
+    lons_cell[lons_cell > 180] -= 360
+    # lons_cell = longtitude_360_to_180(lons_cell)
 
     rain_in = diag_ds["rainnc"][0] * MM_TO_IN
 
@@ -428,7 +433,8 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
-    lons_cell = longtitude_360_to_180(lons_cell)
+    lons_cell[lons_cell > 180] -= 360
+    # lons_cell = longtitude_360_to_180(lons_cell)
 
     rain_in = diag_ds["snownc"][0] * MM_TO_IN
 
@@ -462,6 +468,7 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
     # fig.show()
 
 
+@time_it
 def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
@@ -476,11 +483,13 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
-    lons_cell = longtitude_360_to_180(lons_cell)
+    lons_cell[lons_cell > 180] -= 360
+    # lons_cell = longtitude_360_to_180(lons_cell)
 
     lats_vert = mesh_ds["latVertex"] * RADIAN_TO_DEGREE
     lons_vert = mesh_ds["lonVertex"] * RADIAN_TO_DEGREE
-    lons_vert = longtitude_360_to_180(lons_vert)
+    lons_vert[lons_vert > 180] -= 360
+    # lons_vert = longtitude_360_to_180(lons_vert)
 
     hgt_500_cell = diag_ds["height_500hPa"][0]
     hgt_500_cell_dm = hgt_500_cell / 10
@@ -512,21 +521,18 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     ax.set_xlim((np.min(lons_vert), np.max(lons_vert)))
     ax.set_ylim((np.min(lats_vert), np.max(lats_vert)))
-    """
-    """
 
     title = plot_title(init_dt, valid_dt, fhour, "Rel Vort", "Dan MPAS", "10^5 s^-1")
     ax.set_title(title)
     ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
-    print("saving", f"products/images/{domain_name}-{cycle}z-vort500-{fhour_str}.png")
-    t0 = time.time()
     fig.savefig(
         f"products/images/{domain_name}-{cycle}z-vort500-{fhour_str}.png",
         bbox_inches="tight",
     )
-    print(time.time() - t0)
+
     plt.close(fig)
+
     # fig.show()
 
 
@@ -545,7 +551,8 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
-    lons_cell = longtitude_360_to_180(lons_cell)
+    lons_cell[lons_cell > 180] -= 360
+    # lons_cell = longtitude_360_to_180(lons_cell)
 
     rh_700 = diag_ds["relhum_700hPa"][0]
     hgt_700_cell = diag_ds["height_700hPa"][0]
@@ -559,6 +566,7 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     _, _, grid_700_v = grid_data(lons_cell, lats_cell, v_700_cell)
 
     fig, ax = basemap(crs.LambertConformal(central_longitude=-100))
+    ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     # Remove points where terrain is above the lowest contour level
     # to not have messed up contour lines in these areas
@@ -591,12 +599,10 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png")
-    t0 = time.time()
     fig.savefig(
         f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png",
         bbox_inches="tight",
     )
-    print(time.time() - t0)
     plt.close(fig)
 
 
@@ -604,7 +610,8 @@ def interp_terrain(mesh_ds):
     "Plots terrain using two methods"
     lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
     lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
-    lons_cell = longtitude_360_to_180(lons_cell)
+    lons_cell[lons_cell > 180] -= 360
+    # lons_cell = longtitude_360_to_180(lons_cell)
     ter = mesh_ds["ter"]
     ter_ft = ter * 3.281
 
@@ -633,7 +640,8 @@ def make_mesh(mesh_ds):
     verts_on_edge = mesh_ds["verticesOnEdge"]
     lats_vert = mesh_ds["latVertex"] * RADIAN_TO_DEGREE
     lons_vert = mesh_ds["lonVertex"] * RADIAN_TO_DEGREE
-    lons_vert = longtitude_360_to_180(lons_vert)
+    lons_vert[lons_vert > 180] -= 360
+    # lons_vert = longtitude_360_to_180(lons_vert)
 
     kml = simplekml.Kml()
     for i, vert_idx in enumerate(verts_on_edge):
@@ -659,7 +667,7 @@ def make_cell_geojson(mesh_ds):
     verts_on_edge = mesh_ds["verticesOnEdge"]
     lats_vert = mesh_ds["latVertex"] * RADIAN_TO_DEGREE
     lons_vert = mesh_ds["lonVertex"] * RADIAN_TO_DEGREE
-    lons_vert = longtitude_360_to_180(lons_vert)
+    lons_vert[lons_vert > 180] -= 360
 
     # preallocate list of len(verts_on_edge)
 
@@ -680,11 +688,18 @@ def make_cell_geojson(mesh_ds):
         y1 = float(lats_vert[vert0 - 1])
         y2 = float(lats_vert[vert1 - 1])
 
+        # hack for lines that cross the 0/180 meridians that mess up displaying
+        if (x1 > 0 and x2 < 0) or (x1 < 0 and x2 > 0):
+            x1 = 0
+            x2 = 0
+            y1 = 0
+            y2 = 0
+
         lines[i] = Feature(geometry=LineString([(x1, y1), (x2, y2)]))
 
     collection = FeatureCollection(lines.tolist())
 
-    with open("mpas_mesh.geojson", "w") as f:
+    with open("global25km.geojson", "w") as f:
         json.dump(collection, f)
 
 
@@ -742,10 +757,12 @@ def main(domain_name="colorado12km"):
 
     with mp.Pool() as pool:
 
+        """
         vort_500_plots(files[0:1], mesh_file)
         rh_700_plots(files, mesh_file)
         precip_plots(files, mesh_file)
         swe_plots(files, mesh_file)
+        """
 
         pool.apply_async(
             vort_500_plots,
