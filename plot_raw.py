@@ -410,7 +410,7 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     print("saving", f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png")
     fig.savefig(
-        f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png",
+        f"products/images/mpas.{cycle}.{domain_name}.precip.f{fhour_str}.png",
         bbox_inches="tight",
     )
     plt.close(fig)
@@ -460,7 +460,7 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     print("saving", f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png")
     fig.savefig(
-        f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png",
+        f"products/images/mpas.{cycle}.{domain_name}.swe.f{fhour_str}.png",
         bbox_inches="tight",
     )
     plt.close(fig)
@@ -527,13 +527,20 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
     ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     fig.savefig(
-        f"products/images/{domain_name}-{cycle}z-vort500-{fhour_str}.png",
+        f"products/images/mpas.{cycle}.{domain_name}.vort500.f{fhour_str}.png",
         bbox_inches="tight",
     )
 
     plt.close(fig)
-
     # fig.show()
+
+def make_extent_mask(extent, lons, lats):
+    lon_min, lon_max, lat_min, lat_max = extent
+    lon_mask = np.array(lons >= lon_min) & np.array(lons <= lon_max)
+    lat_mask = np.array(lats >= lat_min) & np.array(lats <= lat_max)
+
+    return lon_mask & lat_mask
+
 
 
 @time_it
@@ -600,7 +607,7 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     print("saving", f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png")
     fig.savefig(
-        f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png",
+        f"products/images/mpas.{cycle}.{domain_name}.rh700.f{fhour_str}.png",
         bbox_inches="tight",
     )
     plt.close(fig)
