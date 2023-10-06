@@ -410,7 +410,7 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     print("saving", f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png")
     fig.savefig(
-        f"products/images/mpas.{cycle}.{domain_name}.precip.{fhour_str}.png",
+        f"products/images/mpas.{cycle}z.{domain_name}.precip.{fhour_str}.png",
         bbox_inches="tight",
     )
     plt.close(fig)
@@ -460,7 +460,7 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     print("saving", f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png")
     fig.savefig(
-        f"products/images/mpas.{cycle}.{domain_name}.swe.{fhour_str}.png",
+        f"products/images/mpas.{cycle}z.{domain_name}.swe.{fhour_str}.png",
         bbox_inches="tight",
     )
     plt.close(fig)
@@ -527,7 +527,7 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
     ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     fig.savefig(
-        f"products/images/mpas.{cycle}.{domain_name}.vort500.{fhour_str}.png",
+        f"products/images/mpas.{cycle}z.{domain_name}.vort500.{fhour_str}.png",
         bbox_inches="tight",
     )
 
@@ -607,7 +607,7 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     print("saving", f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png")
     fig.savefig(
-        f"products/images/mpas.{cycle}.{domain_name}.rh700.{fhour_str}.png",
+        f"products/images/mpas.{cycle}z.{domain_name}.rh700.{fhour_str}.png",
         bbox_inches="tight",
     )
     plt.close(fig)
