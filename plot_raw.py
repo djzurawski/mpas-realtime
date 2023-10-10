@@ -432,7 +432,7 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
     lons_cell[lons_cell > 180] -= 360
     # lons_cell = longtitude_360_to_180(lons_cell)
 
-    rain_in = diag_ds["snownc"][0] * MM_TO_IN
+    snow_in = diag_ds["snownc"][0] * MM_TO_IN
 
     fig, ax = basemap()
 
@@ -442,7 +442,7 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
     rain_contours = ax.tricontourf(
         lons_cell,
         lats_cell,
-        rain_in,
+        snow_in,
         PRECIP_CLEVS,
         levels=PRECIP_CLEVS,
         cmap=cmap,
@@ -499,8 +499,8 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
     # grid_500_xvort, grid_500_yvort, grid_500_vert_scaled = grid_data(lons_vert, lats_vert, vort_500_vert_scaled)
     _, _, grid_500_v = grid_data(lons_cell, lats_cell, v_500_cell)
 
-    # fig, ax = basemap(crs.LambertConformal(central_longitude=-100))
-    fig, ax = basemap()
+    fig, ax = basemap(crs.LambertConformal(central_longitude=-100))
+    # fig, ax = basemap()
 
     fig, ax = add_geopotential_hgt(
         fig, ax, lons_cell, lats_cell, hgt_500_cell_dm, hgt_levels
@@ -516,25 +516,26 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
         grid_500_v,
     )
 
-    ax.set_xlim((np.min(lons_vert), np.max(lons_vert)))
-    ax.set_ylim((np.min(lats_vert), np.max(lats_vert)))
+    # ax.set_xlim((np.min(lons_vert), np.max(lons_vert)))
+    # ax.set_ylim((np.min(lats_vert), np.max(lats_vert)))
 
     title = plot_title(init_dt, valid_dt, fhour, "Rel Vort", "Dan MPAS", "10^5 s^-1")
     ax.set_title(title)
     # ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
-    left = np.min(lons_cell)
-    right = np.max(lons_cell)
-    top = np.max(lats_cell)
-    bottom = np.min(lats_cell)
-    ax.set_extent([left, right, bottom, top], crs=crs.PlateCarree())
+    # left = np.min(lons_cell)
+    # right = np.max(lons_cell)
+    # top = np.max(lats_cell)
+    # bottom = np.min(lats_cell)
+    # ax.set_extent([left, right, bottom, top], crs=crs.PlateCarree())
 
+    print("saving", f"mpas.{cycle}z.{domain_name}.vort500.{fhour_str}.png")
     fig.savefig(
         f"products/images/mpas.{cycle}z.{domain_name}.vort500.{fhour_str}.png",
         bbox_inches="tight",
     )
 
-    # plt.close(fig)
-    fig.show()
+    plt.close(fig)
+    # fig.show()
 
 
 def make_extent_mask(extent, lons, lats):
@@ -791,16 +792,17 @@ def main(domain_name="colorado12km"):
             swe_plots, (files, mesh_file, domain_name), error_callback=error_callback
         )
 
-        # pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
+        pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
 
         pool.close()
         pool.join()
 
 
 def tst():
-    mesh_ds = xr.open_dataset("MPAS-Model/west12km.static.nc")
     mesh_ds = xr.open_dataset("MPAS-Model/westNA15km.static.nc")
-    ds = xr.open_dataset("/home/dan/Documents/mpas/diag.2023-10-10_00.00.00.nc")
+    ds = xr.open_dataset(
+        "/home/dan/Sourcecode/mpas-realtime/products/mpas/diag.2023-10-14_00.00.00.nc"
+    )
     plot_500_vorticity(ds, mesh_ds, domain_name="colorado12km")
     # plot_700_rh(ds, mesh_ds, domain_name="colorado12km")
 
