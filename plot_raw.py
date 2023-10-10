@@ -32,6 +32,7 @@ MM_TO_IN = 0.03937008
 
 NA_EXTENT = [-150, -60, 18, 80]
 CONUS_EXTENT = [-126, -66, 15, 61]
+WEST_CONUS_EXTENT = [-130, -95, 25, 55]
 
 
 VORT_CMAP = (
@@ -187,7 +188,6 @@ def longtitude_360_to_180(lons):
     # return ((lon + 360) % 180) - 180
 
 
-
 def grid_data(x, y, z, side_len=None):
     """Interpolates 3 1D arrays of xcoords, ycoords, values
     into a grid.
@@ -231,7 +231,6 @@ def basemap(projection=crs.PlateCarree()):
 
 
 def add_geopotential_hgt(fig, ax, lons, lats, hgt, levels):
-
     contours = ax.tricontour(
         lons,
         lats,
@@ -299,7 +298,6 @@ def add_wind_barbs(
 
 
 def add_relative_humidity(fig, ax, lons, lats, rh):
-
     rh_levels = [
         0,
         1,
@@ -359,7 +357,6 @@ def ds_times(ds):
 
 
 def plot_title(init_dt, valid_dt, fhour, field_name, model_name="", field_units=""):
-
     date_format = "%Y-%m-%dT%HZ"
     init_str = init_dt.strftime(date_format)
     valid_str = valid_dt.strftime(date_format)
@@ -369,7 +366,6 @@ def plot_title(init_dt, valid_dt, fhour, field_name, model_name="", field_units=
 
 
 def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
-
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
 
@@ -406,7 +402,8 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
     fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
     title = plot_title(init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS", "in")
     ax.set_title(title)
-    ax.set_extent(CONUS_EXTENT, crs=crs.PlateCarree())
+
+    ax.set_extent(WEST_CONUS_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png")
     fig.savefig(
@@ -419,7 +416,6 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
 
 
 def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
-
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
 
@@ -456,7 +452,7 @@ def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
     fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
     title = plot_title(init_dt, valid_dt, fhour, "Accum Swe", "Dan MPAS", "in")
     ax.set_title(title)
-    ax.set_extent(CONUS_EXTENT, crs=crs.PlateCarree())
+    ax.set_extent(WEST_CONUS_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png")
     fig.savefig(
@@ -503,7 +499,8 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
     # grid_500_xvort, grid_500_yvort, grid_500_vert_scaled = grid_data(lons_vert, lats_vert, vort_500_vert_scaled)
     _, _, grid_500_v = grid_data(lons_cell, lats_cell, v_500_cell)
 
-    fig, ax = basemap(crs.LambertConformal(central_longitude=-100))
+    # fig, ax = basemap(crs.LambertConformal(central_longitude=-100))
+    fig, ax = basemap()
 
     fig, ax = add_geopotential_hgt(
         fig, ax, lons_cell, lats_cell, hgt_500_cell_dm, hgt_levels
@@ -524,15 +521,21 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     title = plot_title(init_dt, valid_dt, fhour, "Rel Vort", "Dan MPAS", "10^5 s^-1")
     ax.set_title(title)
-    ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
+    # ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
+    left = np.min(lons_cell)
+    right = np.max(lons_cell)
+    top = np.max(lats_cell)
+    bottom = np.min(lats_cell)
+    ax.set_extent([left, right, bottom, top], crs=crs.PlateCarree())
 
     fig.savefig(
         f"products/images/mpas.{cycle}z.{domain_name}.vort500.{fhour_str}.png",
         bbox_inches="tight",
     )
 
-    plt.close(fig)
-    # fig.show()
+    # plt.close(fig)
+    fig.show()
+
 
 def make_extent_mask(extent, lons, lats):
     lon_min, lon_max, lat_min, lat_max = extent
@@ -540,7 +543,6 @@ def make_extent_mask(extent, lons, lats):
     lat_mask = np.array(lats >= lat_min) & np.array(lats <= lat_max)
 
     return lon_mask & lat_mask
-
 
 
 @time_it
@@ -573,7 +575,7 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     _, _, grid_700_v = grid_data(lons_cell, lats_cell, v_700_cell)
 
     fig, ax = basemap(crs.LambertConformal(central_longitude=-100))
-    ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
+    # ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     # Remove points where terrain is above the lowest contour level
     # to not have messed up contour lines in these areas
@@ -603,14 +605,15 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
 
     title = plot_title(init_dt, valid_dt, fhour, "700mb RH", "Dan MPAS", "%")
     ax.set_title(title)
-    ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
+    # ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-rh700-{fhour_str}.png")
     fig.savefig(
         f"products/images/mpas.{cycle}z.{domain_name}.rh700.{fhour_str}.png",
         bbox_inches="tight",
     )
-    plt.close(fig)
+    fig.show()
+    # plt.close(fig)
 
 
 def interp_terrain(mesh_ds):
@@ -763,7 +766,6 @@ def main(domain_name="colorado12km"):
     mesh_file = f"MPAS-Model/{domain_name}.static.nc"
 
     with mp.Pool() as pool:
-
         """
         vort_500_plots(files[0:1], mesh_file)
         rh_700_plots(files, mesh_file)
@@ -785,14 +787,25 @@ def main(domain_name="colorado12km"):
             precip_plots, (files, mesh_file, domain_name), error_callback=error_callback
         )
 
+        pool.apply_async(
+            swe_plots, (files, mesh_file, domain_name), error_callback=error_callback
+        )
+
         # pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
 
         pool.close()
         pool.join()
 
 
-if __name__ == "__main__":
+def tst():
+    mesh_ds = xr.open_dataset("MPAS-Model/west12km.static.nc")
+    mesh_ds = xr.open_dataset("MPAS-Model/westNA15km.static.nc")
+    ds = xr.open_dataset("/home/dan/Documents/mpas/diag.2023-10-10_00.00.00.nc")
+    plot_500_vorticity(ds, mesh_ds, domain_name="colorado12km")
+    # plot_700_rh(ds, mesh_ds, domain_name="colorado12km")
 
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--domain",
