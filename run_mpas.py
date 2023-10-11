@@ -91,19 +91,20 @@ def select_gfs_cycle():
     """Attemps to figure out the most recent GFS
     cycle available on NOMADS for current time"""
     utc_hour = datetime.utcnow().hour
-    if utc_hour >= 5 and utc_hour < 11:
+    print("utc hour", utc_hour)
+    if utc_hour >= 4 and utc_hour < 10:
         return 0
-    if utc_hour >= 11 and utc_hour < 17:
+    elif utc_hour >= 10 and utc_hour < 16:
         return 6
-    if utc_hour >= 17 and utc_hour < 21:
+    elif utc_hour >= 16 and utc_hour < 22:
         return 12
-    if utc_hour >= 21 or utc_hour < 5:
+    else:
         return 18
 
 
 def is_last_cycle_yesterday():
     utc_hour = datetime.utcnow().hour
-    if utc_hour < 5:
+    if utc_hour < 4:
         return True
     else:
         return False
@@ -112,6 +113,7 @@ def is_last_cycle_yesterday():
 def latest_gfs_init_date():
     now = datetime.utcnow()
     cycle = select_gfs_cycle()
+    print("CYCLE", cycle)
     if is_last_cycle_yesterday():
         date = now - timedelta(days=1)
     else:
@@ -232,6 +234,7 @@ def update_wps_namelist(init_date, flength):
 
     start_str = init_date.strftime(NAMELIST_DATE_FORMAT)
     end_date = init_date + timedelta(hours=flength)
+    print(init_date, end_date, flength)
     end_str = end_date.strftime(NAMELIST_DATE_FORMAT)
     fpath = f"{ROOT_DIR}/tools/WPS-4.4/namelist.wps"
     wps_nml = f90nml.read(fpath)
