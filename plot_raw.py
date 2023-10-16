@@ -34,6 +34,27 @@ NA_EXTENT = [-150, -60, 18, 80]
 CONUS_EXTENT = [-126, -66, 15, 61]
 WEST_CONUS_EXTENT = [-130, -95, 25, 55]
 
+FRONT_RANGE_EXTENT = [-107.9, -104.6, 38.25, 40.9]
+WASATCH_EXTENT = [-112.5, -111.0, 40, 41.5]
+
+FRONT_RANGE_LABELS = [
+    ("Abasin", -105.871, 39.635),
+    ("Boulder", -105.27, 40.01),
+    ("Copper", -106.16, 39.485),
+    ("Eldora", -105.595, 39.94),
+    ("Steamboat", -106.76, 40.46),
+    ("Vail", -106.375, 39.61),
+    ("Winter Park", -105.77, 39.867),
+]
+
+
+WASATCH_LABELS = [
+    ("Powder Mtn", -111.78, 41.38),
+    ("Snowbasin", -111.855, 41.2),
+    ("Alta-Snowbird", -111.63, 40.577),
+    ("Park City-Deer Valley", -111.5, 40.625),
+]
+
 
 VORT_CMAP = (
     np.array(
@@ -205,7 +226,7 @@ def grid_data(x, y, z, side_len=None):
     return grid_x, grid_y, grid_z
 
 
-def basemap(projection=crs.PlateCarree()):
+def basemap(projection=crs.PlateCarree(), display_counties=False):
     fig = plt.figure(figsize=(18, 10))
     ax = plt.axes(projection=projection)
 
@@ -225,7 +246,8 @@ def basemap(projection=crs.PlateCarree()):
     ax.add_feature(states, facecolor="none", edgecolor="black")
     ax.coastlines(border_scale, linewidth=0.8)
     ax.add_feature(states, facecolor="none", edgecolor="black")
-    # ax.add_feature(USCOUNTIES.with_scale(county_scale), edgecolor="gray")
+    if display_counties:
+        ax.add_feature(USCOUNTIES.with_scale(county_scale), edgecolor="gray")
 
     return fig, ax
 
@@ -410,11 +432,151 @@ def accumulated_precip_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
         f"products/images/mpas.{cycle}z.{domain_name}.precip.{fhour_str}.png",
         bbox_inches="tight",
     )
+    # plt.close(fig)
+
+    plt.show()
+
+
+def set_downscale_ds_extent(ds, extent=FRONT_RANGE_EXTENT):
+    left, right, bottom, top = extent
+    x_condition = (ds.x >= left) & (ds.x <= right)
+    y_condition = (ds.y >= bottom) & (ds.y <= top)
+    trimmed = ds.where(x_condition & y_condition, drop=True)
+    return trimmed
+
+
+def interp_to_downscale_ds(data, model_lons, model_lats, downscale_ds):
+    xx_ratio, yy_ratio = np.meshgrid(downscale_ds.x, downscale_ds.y)
+    ratio_pairs = np.dstack((xx_ratio, yy_ratio)).reshape(-1, 2)
+    interp_points = ratio_pairs
+    model_coords = np.dstack((model_lons, model_lats)).reshape(-1, 2)
+    grid = griddata(model_coords, data.reshape(-1), interp_points, method="cubic")
+    data_at_prism_points = grid.reshape(downscale_ds.band_data[0].shape)
+
+    return data_at_prism_points
+
+
+def downscaled_precip_plot(
+    diag_ds, mesh_ds, downscale_ds, extent, domain_name="colorado12km"
+):
+    init_dt, valid_dt, fhour = ds_times(diag_ds)
+    cycle = str(init_dt.hour).zfill(2)
+    fhour_str = "f" + str(fhour).zfill(2)
+
+    lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
+    lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
+    lons_cell[lons_cell > 180] -= 360
+    # lons_cell = longtitude_360_to_180(lons_cell)
+
+    rain_in = diag_ds["rainnc"][0] * MM_TO_IN
+    trimmed_downscale = set_downscale_ds_extent(downscale_ds, extent)
+    trimmed_downscale = downscale_ds
+    rain_at_downscale = interp_to_downscale_ds(
+        rain_in.to_numpy(), lons_cell, lats_cell, trimmed_downscale
+    )
+
+    downscaled_rain = rain_at_downscale * trimmed_downscale.band_data[0]
+
+    fig, ax = basemap(display_counties=True)
+
+    cmap = mcolors.ListedColormap(PRECIP_CMAP_DATA)
+    norm = mcolors.BoundaryNorm(PRECIP_CLEVS, cmap.N)
+
+    rain_contours = ax.contourf(
+        trimmed_downscale.x,
+        trimmed_downscale.y,
+        downscaled_rain,
+        PRECIP_CLEVS,
+        levels=PRECIP_CLEVS,
+        cmap=cmap,
+        norm=norm,
+        # tranform=crs.PlateCarree(),
+    )
+
+    fig.colorbar(rain_contours, ax=ax, orientation="vertical", pad=0.05)
+    title = plot_title(
+        init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS Downscaled", "in"
+    )
+    ax.set_title(title)
+
+    ax.set_extent(WEST_CONUS_EXTENT, crs=crs.PlateCarree())
+
+    print("saving", f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png")
+    fig.savefig(
+        f"products/images/mpas.{cycle}z.{domain_name}.precip.{fhour_str}.png",
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+    # plt.show()
+
+
+def tst2():
+    diag_ds = xr.open_dataset("diag.2023-10-16_12.00.00.nc")
+    mesh_ds = xr.open_dataset("MPAS-Model/westNA15km.static.nc")
+    downscale_ds = xr.open_dataset(
+        "/home/dan/Sourcecode/dan-weather-suite/15km_ratio.nc"
+    )
+    extent = FRONT_RANGE_EXTENT
+    downscaled_precip_plot(
+        diag_ds, mesh_ds, downscale_ds, extent, domain_name="frange-downscaled"
+    )
+
+
+def downscaled_swe_plot(
+    diag_ds, mesh_ds, downscale_ds, extent, domain_name="colorado12km"
+):
+    init_dt, valid_dt, fhour = ds_times(diag_ds)
+    cycle = str(init_dt.hour).zfill(2)
+    fhour_str = "f" + str(fhour).zfill(2)
+
+    lats_cell = mesh_ds["latCell"] * RADIAN_TO_DEGREE
+    lons_cell = mesh_ds["lonCell"] * RADIAN_TO_DEGREE
+    lons_cell[lons_cell > 180] -= 360
+    # lons_cell = longtitude_360_to_180(lons_cell)
+
+    snow_in = diag_ds["snownc"][0] * MM_TO_IN
+    trimmed_downscale = set_downscale_ds_extent(downscale_ds, extent)
+    trimmed_downscale = downscale_ds
+    snow_at_downscale = interp_to_downscale_ds(
+        snow_in.to_numpy(), lons_cell, lats_cell, trimmed_downscale
+    )
+
+    downscaled_snow = snow_at_downscale * trimmed_downscale.band_data[0]
+
+    fig, ax = basemap(display_counties=True)
+
+    cmap = mcolors.ListedColormap(PRECIP_CMAP_DATA)
+    norm = mcolors.BoundaryNorm(PRECIP_CLEVS, cmap.N)
+
+    snow_contours = ax.contourf(
+        trimmed_downscale.x,
+        trimmed_downscale.y,
+        downscaled_snow,
+        PRECIP_CLEVS,
+        levels=PRECIP_CLEVS,
+        cmap=cmap,
+        norm=norm,
+        # tranform=crs.PlateCarree(),
+    )
+
+    fig.colorbar(snow_contours, ax=ax, orientation="vertical", pad=0.05)
+    title = plot_title(
+        init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS Downscaled", "in"
+    )
+    ax.set_title(title)
+
+    ax.set_extent(WEST_CONUS_EXTENT, crs=crs.PlateCarree())
+
+    print("saving", f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png")
+
+    fig.savefig(
+        f"products/images/mpas.{cycle}z.{domain_name}.swe.{fhour_str}.png",
+        bbox_inches="tight",
+    )
     plt.close(fig)
 
-    # fig.show()
 
-
+@time_it
 def accumulated_swe_plot(diag_ds, mesh_ds, domain_name="colorado12km"):
     """outfile_path: Path of MPAS output file (history*, diagnostics*)
        mesh_path: Path of static/init mesh to provide cell lat/lons.
@@ -758,7 +920,41 @@ def precip_plots(diag_files, mesh_file, domain_name):
             print("precip plot exception: ", str(e))
 
 
-def main(domain_name="colorado12km"):
+def downscaled_precip_plots(diag_files, mesh_file, downscale_file):
+    regions = [
+        ("frange-downscaled", FRONT_RANGE_EXTENT),
+        ("wasatch-downscaled", WASATCH_EXTENT),
+    ]
+    mesh_ds = xr.open_dataset(mesh_file)
+    downscale_ds = xr.open_dataset(downscale_file)
+    for diag_file in diag_files:
+        for domain_name, extent in regions:
+            try:
+                diag_ds = xr.open_dataset(diag_file)
+                downscaled_precip_plot(
+                    diag_ds, mesh_ds, downscale_ds, extent, domain_name
+                )
+            except Exception as e:
+                print("precip plot exception: ", str(e))
+
+
+def downscaled_swe_plots(diag_files, mesh_file, downscale_file):
+    regions = [
+        ("frange-downscaled", FRONT_RANGE_EXTENT),
+        ("wasatch-downscaled", WASATCH_EXTENT),
+    ]
+    mesh_ds = xr.open_dataset(mesh_file)
+    downscale_ds = xr.open_dataset(downscale_file)
+    for diag_file in diag_files:
+        for domain_name, extent in regions:
+            try:
+                diag_ds = xr.open_dataset(diag_file)
+                downscaled_swe_plot(diag_ds, mesh_ds, downscale_ds, extent, domain_name)
+            except Exception as e:
+                print("precip plot exception: ", str(e))
+
+
+def main(domain_name="colorado12km", downscale_file="15km-800m-downscale.nc"):
     # domain_name = "colorado12km"
     file_dir = "products/mpas"
     files = sorted([f"{file_dir}/{f}" for f in os.listdir(file_dir) if ".nc" in f])
@@ -794,6 +990,20 @@ def main(domain_name="colorado12km"):
 
         pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
 
+        # if downscale_file exists
+        if os.path.exists(downscale_file):
+            pool.apply_async(
+                downscaled_precip_plots,
+                (files, mesh_file, downscale_file),
+                error_callback=error_callback,
+            )
+
+            pool.apply_async(
+                downscaled_swe_plots,
+                (files, mesh_file, downscale_file),
+                error_callback=error_callback,
+            )
+
         pool.close()
         pool.join()
 
@@ -815,7 +1025,14 @@ if __name__ == "__main__":
         default="colorado12km",
         help="Domain name",
     )
+
+    parser.add_argument(
+        "--downscale-file",
+        type=str,
+        default="15km-800m-downscale.nc",
+        help="Precip downscale ratio file",
+    )
+
     args = parser.parse_args()
 
-    print("Domain", args.domain)
     main(domain_name=args.domain)
