@@ -988,7 +988,9 @@ def main(domain_name="colorado12km", downscale_file="15km-800m-downscale.nc"):
             swe_plots, (files, mesh_file, domain_name), error_callback=error_callback
         )
 
-        pool.apply_async(swe_plots, (files, mesh_file), error_callback=error_callback)
+        pool.apply_async(
+            swe_plots, (files, mesh_file, domain_name), error_callback=error_callback
+        )
 
         # if downscale_file exists
         if os.path.exists(downscale_file):
