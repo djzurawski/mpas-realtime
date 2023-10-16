@@ -498,8 +498,7 @@ def downscaled_precip_plot(
         init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS Downscaled", "in"
     )
     ax.set_title(title)
-
-    ax.set_extent(WEST_CONUS_EXTENT, crs=crs.PlateCarree())
+    ax.set_extent(extent, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-precip-{fhour_str}.png")
     fig.savefig(
@@ -564,8 +563,7 @@ def downscaled_swe_plot(
         init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS Downscaled", "in"
     )
     ax.set_title(title)
-
-    ax.set_extent(WEST_CONUS_EXTENT, crs=crs.PlateCarree())
+    ax.set_extent(extent, crs=crs.PlateCarree())
 
     print("saving", f"products/images/{domain_name}-{cycle}z-swe-{fhour_str}.png")
 
