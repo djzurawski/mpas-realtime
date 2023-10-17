@@ -560,7 +560,7 @@ def downscaled_swe_plot(
 
     fig.colorbar(snow_contours, ax=ax, orientation="vertical", pad=0.05)
     title = plot_title(
-        init_dt, valid_dt, fhour, "Accum Precip", "Dan MPAS Downscaled", "in"
+        init_dt, valid_dt, fhour, "Accum SWE", "Dan MPAS Downscaled", "in"
     )
     ax.set_title(title)
     ax.set_extent(extent, crs=crs.PlateCarree())
