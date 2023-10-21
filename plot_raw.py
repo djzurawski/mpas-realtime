@@ -659,7 +659,8 @@ def plot_500_vorticity(diag_ds, mesh_ds, domain_name="colorado12km"):
     # grid_500_xvort, grid_500_yvort, grid_500_vert_scaled = grid_data(lons_vert, lats_vert, vort_500_vert_scaled)
     _, _, grid_500_v = grid_data(lons_cell, lats_cell, v_500_cell)
 
-    central_longitude = np.mean([np.max(lons_cell), np.min(lons_cell)])
+    #central_longitude = np.mean([np.max(lons_cell), np.min(lons_cell)])
+    central_longitude = -113
     fig, ax = basemap(crs.LambertConformal(central_longitude=central_longitude))
     # fig, ax = basemap()
 
@@ -736,7 +737,8 @@ def plot_700_rh(diag_ds, mesh_ds, domain_name="colorado12km"):
     grid_700_x, grid_700_y, grid_700_u = grid_data(lons_cell, lats_cell, u_700_cell)
     _, _, grid_700_v = grid_data(lons_cell, lats_cell, v_700_cell)
 
-    central_longitude = np.mean([np.max(lons_cell), np.min(lons_cell)])
+    #central_longitude = np.mean([np.max(lons_cell), np.min(lons_cell)])
+    central_longitude = -113
     fig, ax = basemap(crs.LambertConformal(central_longitude=central_longitude))
     # ax.set_extent(NA_EXTENT, crs=crs.PlateCarree())
 
