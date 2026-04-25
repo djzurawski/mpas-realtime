@@ -3,10 +3,10 @@
 
 cd $LIB_SRC_DIR
 
-wget -c https://downloads.unidata.ucar.edu/netcdf-c/4.9.0/netcdf-c-4.9.0.tar.gz
-tar -xzf netcdf-c-4.9.0.tar.gz
+wget -c https://downloads.unidata.ucar.edu/netcdf-c/4.9.3/netcdf-c-4.9.3.tar.gz
+tar -xzf netcdf-c-4.9.3.tar.gz
 
-cd netcdf-c-4.9.0
+cd netcdf-c-4.9.3
 make clean
 export LIBS="-lhdf5_hl -lhdf5 -lz -ldl"
 export CPPFLAGS=-I$LIB_PREFIX/include

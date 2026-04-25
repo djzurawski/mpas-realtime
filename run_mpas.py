@@ -176,7 +176,7 @@ def download_0p50_grib(date, cycle, fhour):
 
     day_of_year = date.strftime("%Y%m%d")
 
-    url = "20221015/12/atmos/gfs.t12z.pgrb2b.0p50.f060"
+    #url = "20221015/12/atmos/gfs.t12z.pgrb2b.0p50.f060"
 
     base_url = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs."
     date_url = f"{day_of_year}/{cycle}/atmos/gfs.t{cycle}z.pgrb2.0p50.f{fhour}"
@@ -426,11 +426,10 @@ def global_simulation(domain_name="colorado12km", resolution_km=12, flength=12):
     SCRIPT_DIR = f"{ROOT_DIR}/scripts"
     init_dt = latest_gfs_init_date()
 
-    """
     print("Cleaning generated files from running model")
     subprocess.call(f"{SCRIPT_DIR}/clean_all.sh")
     # Only need to download initial conditions
-    init_dt = download_latest_grib(1, globe=True)
+    init_dt = download_latest_grib(flength, globe=True)
 
     print("WPS")
     update_wps_namelist(init_dt, flength)
@@ -440,7 +439,7 @@ def global_simulation(domain_name="colorado12km", resolution_km=12, flength=12):
     prep_initial_conditions(domain_name, init_dt, flength, limited_area=False)
     subprocess.call(f"{SCRIPT_DIR}/run_init_atmosphere.sh")
 
-    """
+
     print("Running")
     prep_run(domain_name, init_dt, flength, resolution_km, limited_area=False)
     subprocess.call(f"{SCRIPT_DIR}/run_atmosphere.sh")

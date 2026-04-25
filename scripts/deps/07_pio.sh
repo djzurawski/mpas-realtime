@@ -6,8 +6,8 @@ export CPPFLAGS="-I$LIB_PREFIX/include"
 export LDFLAGS="-L$LIB_PREFIX/lib"
 export CC=mpicc
 export FC=mpifort
-wget -c https://github.com/NCAR/ParallelIO/archive/refs/tags/pio2_5_9.tar.gz
-tar -xzvf pio2_5_9.tar.gz
+#wget -c https://github.com/NCAR/ParallelIO/archive/refs/tags/pio2_5_9.tar.gz
+#tar -xzvf pio2_5_9.tar.gz
 cd $LIB_SRC_DIR/ParallelIO-pio2_5_9
 make clean
 cmake \
